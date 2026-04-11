@@ -1,0 +1,52 @@
+/* PomodoroRelax — custom styles */
+
+html, body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #0c0c18;
+}
+
+/* Blazor reconnect UI */
+#blazor-error-ui {
+    background: rgba(248,113,113,0.85);
+    backdrop-filter: blur(8px);
+    color: white;
+    padding: 0.5rem 1rem;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    z-index: 1000;
+    text-align: center;
+    display: none;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    margin-left: 1rem;
+}
+
+/* Timer digit — mono font, tabular */
+.timer-digits {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+}
+
+/* Smooth background transition */
+.app-bg {
+    transition: background 0.8s ease;
+    min-height: 100vh;
+}
+
+/* Glass card */
+.glass {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }

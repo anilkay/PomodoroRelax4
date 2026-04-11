@@ -1,0 +1,119 @@
+using Microsoft.EntityFrameworkCore;
+using PomodoroRelax4.Data;
+using PomodoroRelax4.Models;
+
+namespace PomodoroRelax4.Services;
+
+public class StatsViewModel
+{
+    public int TodayPomodoros { get; set; }
+    public int WeekPomodoros { get; set; }
+    public int TotalPomodoros { get; set; }
+    public int TotalFocusMinutes { get; set; }
+    public int TasksCompleted { get; set; }
+    public int TasksTotal { get; set; }
+    public List<DailyStats> Last7Days { get; set; } = new();
+    public List<RecentSession> RecentSessions { get; set; } = new();
+}
+
+public class DailyStats
+{
+    public DateOnly Date { get; set; }
+    public int Pomodoros { get; set; }
+    public int FocusMinutes { get; set; }
+}
+
+public class RecentSession
+{
+    public TimerMode SessionType { get; set; }
+    public int DurationMinutes { get; set; }
+    public DateTime CompletedAt { get; set; }
+    public string? TaskTitle { get; set; }
+}
+
+public interface IStatsService
+{
+    Task<StatsViewModel> GetStatsAsync(string userId);
+}
+
+public class StatsService : IStatsService
+{
+    private readonly IDbContextFactory<ApplicationDbContext> _factory;
+
+    public StatsService(IDbContextFactory<ApplicationDbContext> factory) => _factory = factory;
+
+    public async Task<StatsViewModel> GetStatsAsync(string userId)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+
+        var today = DateTime.UtcNow.Date;
+        var weekStart = today.AddDays(-(int)today.DayOfWeek);
+        var sevenDaysAgo = today.AddDays(-6);
+
+        var pomodoros = await db.PomodoroSessions
+            .Where(s => s.UserId == userId && s.SessionType == TimerMode.Pomodoro && s.CompletedAt.HasValue)
+            .ToListAsync();
+
+        var todayPomodoros = pomodoros.Count(s => s.CompletedAt!.Value.Date == today);
+        var weekPomodoros = pomodoros.Count(s => s.CompletedAt!.Value.Date >= weekStart);
+        var totalPomodoros = pomodoros.Count;
+        var totalFocusMinutes = pomodoros.Sum(s => s.DurationSeconds) / 60;
+
+        // Last 7 days breakdown
+        var last7Days = new List<DailyStats>();
+        for (int i = 6; i >= 0; i--)
+        {
+            var date = DateOnly.FromDateTime(today.AddDays(-i));
+            var dayPomodoros = pomodoros.Where(s => DateOnly.FromDateTime(s.CompletedAt!.Value) == date).ToList();
+            last7Days.Add(new DailyStats
+            {
+                Date = date,
+                Pomodoros = dayPomodoros.Count,
+                FocusMinutes = dayPomodoros.Sum(s => s.DurationSeconds) / 60
+            });
+        }
+
+        // Task stats
+        var tasksCompleted = await db.PomodoroTasks.CountAsync(t => t.UserId == userId && t.IsCompleted);
+        var tasksTotal = await db.PomodoroTasks.CountAsync(t => t.UserId == userId);
+
+        // Recent sessions (all modes, last 10) — load separately to avoid EF left-join translation issues
+        var recentRaw = await db.PomodoroSessions
+            .Where(s => s.UserId == userId && s.CompletedAt.HasValue)
+            .OrderByDescending(s => s.CompletedAt)
+            .Take(10)
+            .ToListAsync();
+
+        var taskIds = recentRaw
+            .Where(s => s.TaskId.HasValue)
+            .Select(s => s.TaskId!.Value)
+            .Distinct()
+            .ToList();
+
+        var taskTitleMap = taskIds.Count > 0
+            ? await db.PomodoroTasks
+                .Where(t => taskIds.Contains(t.Id))
+                .ToDictionaryAsync(t => t.Id, t => t.Title)
+            : new Dictionary<int, string>();
+
+        var recentSessions = recentRaw.Select(s => new RecentSession
+        {
+            SessionType = s.SessionType,
+            DurationMinutes = s.DurationSeconds / 60,
+            CompletedAt = s.CompletedAt!.Value,
+            TaskTitle = s.TaskId.HasValue && taskTitleMap.TryGetValue(s.TaskId.Value, out var title) ? title : null
+        }).ToList();
+
+        return new StatsViewModel
+        {
+            TodayPomodoros = todayPomodoros,
+            WeekPomodoros = weekPomodoros,
+            TotalPomodoros = totalPomodoros,
+            TotalFocusMinutes = totalFocusMinutes,
+            TasksCompleted = tasksCompleted,
+            TasksTotal = tasksTotal,
+            Last7Days = last7Days,
+            RecentSessions = recentSessions
+        };
+    }
+}

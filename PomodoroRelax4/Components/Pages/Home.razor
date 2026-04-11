@@ -1,0 +1,42 @@
+@page "/"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+<PageTitle>PomodoroRelax</PageTitle>
+
+<CascadingValue Value="currentMode">
+    <TimerDisplay ActiveTaskId="activeTaskId"
+                  activeTaskTitle="@activeTaskTitle"
+                  OnModeChanged="HandleModeChanged"
+                  OnPomodoroCompleted="HandlePomodoroCompleted" />
+
+    <TaskList @ref="taskListRef"
+              SelectedTaskId="activeTaskId"
+              OnTaskSelected="HandleTaskSelected" />
+</CascadingValue>
+
+@code {
+    private TimerMode currentMode = TimerMode.Pomodoro;
+    private int? activeTaskId;
+    private string? activeTaskTitle;
+    private TaskList? taskListRef;
+
+    private void HandleModeChanged(TimerMode mode)
+    {
+        currentMode = mode;
+        StateHasChanged();
+    }
+
+    private void HandleTaskSelected((int? Id, string? Title) selection)
+    {
+        activeTaskId = selection.Id;
+        activeTaskTitle = selection.Title;
+        StateHasChanged();
+    }
+
+    private async Task HandlePomodoroCompleted()
+    {
+        if (taskListRef is not null)
+            await taskListRef.RefreshTasks();
+    }
+}

@@ -1,0 +1,220 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject ISettingsService SettingsService
+@inject ISessionService SessionService
+@inject ITaskService TaskService
+@inject IJSRuntime JS
+@implements IDisposable
+@rendermode InteractiveServer
+
+<div class="flex flex-col items-center pt-4 pb-2">
+
+    <!-- Mode selector pills -->
+    <div class="flex gap-1 mb-10 p-1 rounded-full" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08)">
+        <button class="px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 @(currentMode == TimerMode.Pomodoro ? "text-app-base font-bold" : "text-white/40 hover:text-white/70")"
+                style="@(currentMode == TimerMode.Pomodoro ? $"background:{AccentColor}" : "")"
+                @onclick="() => SwitchMode(TimerMode.Pomodoro)">
+            Focus
+        </button>
+        <button class="px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 @(currentMode == TimerMode.ShortBreak ? "text-app-base font-bold" : "text-white/40 hover:text-white/70")"
+                style="@(currentMode == TimerMode.ShortBreak ? $"background:{AccentColor}" : "")"
+                @onclick="() => SwitchMode(TimerMode.ShortBreak)">
+            Short Break
+        </button>
+        <button class="px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 @(currentMode == TimerMode.LongBreak ? "text-app-base font-bold" : "text-white/40 hover:text-white/70")"
+                style="@(currentMode == TimerMode.LongBreak ? $"background:{AccentColor}" : "")"
+                @onclick="() => SwitchMode(TimerMode.LongBreak)">
+            Long Break
+        </button>
+    </div>
+
+    <!-- Ring + Timer -->
+    <div class="relative flex items-center justify-center mb-10" style="width:288px;height:288px">
+        <svg class="absolute inset-0" width="288" height="288" viewBox="0 0 288 288">
+            <!-- track -->
+            <circle cx="144" cy="144" r="128" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="5"/>
+            <!-- progress -->
+            <circle cx="144" cy="144" r="128"
+                    fill="none"
+                    stroke="@AccentColor"
+                    stroke-width="5"
+                    stroke-linecap="round"
+                    stroke-dasharray="804.25"
+                    stroke-dashoffset="@RingOffset"
+                    transform="rotate(-90 144 144)"
+                    style="transition: stroke-dashoffset 1s linear, stroke 0.6s ease; filter: drop-shadow(0 0 10px @AccentColor)" />
+        </svg>
+
+        <!-- Timer digits -->
+        <div class="relative text-center select-none z-10">
+            <div class="timer-digits text-white" style="font-size:4.5rem;line-height:1">@FormatTime(remainingSeconds)</div>
+            @if (ActiveTaskId.HasValue && activeTaskTitle is not null)
+            {
+                <p class="mt-2 text-xs truncate max-w-[180px]" style="color:rgba(255,255,255,0.35)">@activeTaskTitle</p>
+            }
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="flex items-center gap-4">
+        @if (!isRunning)
+        {
+            <button class="px-10 py-3 rounded-full font-bold text-sm uppercase tracking-widest transition-all duration-200 hover:scale-105 active:scale-95"
+                    style="background:@AccentColor; color:#0c0c18; box-shadow: 0 0 28px @AccentColorGlow"
+                    @onclick="Start">
+                Start
+            </button>
+        }
+        else
+        {
+            <button class="px-10 py-3 rounded-full font-bold text-sm uppercase tracking-widest transition-all duration-200 hover:scale-105 active:scale-95 text-white"
+                    style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12)"
+                    @onclick="Pause">
+                Pause
+            </button>
+        }
+
+        @if (isRunning || remainingSeconds < totalSeconds)
+        {
+            <button class="w-11 h-11 rounded-full text-lg transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
+                    style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.4)"
+                    @onclick="Reset"
+                    title="Reset">
+                ↺
+            </button>
+        }
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    [Parameter] public int? ActiveTaskId { get; set; }
+    [Parameter] public string? activeTaskTitle { get; set; }
+    [Parameter] public EventCallback<TimerMode> OnModeChanged { get; set; }
+    [Parameter] public EventCallback OnPomodoroCompleted { get; set; }
+
+    private TimerMode currentMode = TimerMode.Pomodoro;
+    private int totalSeconds;
+    private int remainingSeconds;
+    private bool isRunning;
+    private System.Timers.Timer? ticker;
+    private string? userId;
+
+    private int pomodoroDuration    = 25;
+    private int shortBreakDuration  = 5;
+    private int longBreakDuration   = 15;
+
+    private string AccentColor => currentMode switch
+    {
+        TimerMode.ShortBreak => "#34d399",
+        TimerMode.LongBreak  => "#818cf8",
+        _                    => "#f87171"
+    };
+
+    private string AccentColorGlow => currentMode switch
+    {
+        TimerMode.ShortBreak => "rgba(52,211,153,0.45)",
+        TimerMode.LongBreak  => "rgba(129,140,248,0.45)",
+        _                    => "rgba(248,113,113,0.45)"
+    };
+
+    private double Progress => totalSeconds > 0 ? (double)remainingSeconds / totalSeconds : 1.0;
+    private const double Circumference = 804.25;
+    private string RingOffset => ((1.0 - Progress) * Circumference).ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId is not null)
+            {
+                var settings = await SettingsService.GetSettingsAsync(userId);
+                pomodoroDuration   = settings.PomodoroDurationMinutes;
+                shortBreakDuration = settings.ShortBreakDurationMinutes;
+                longBreakDuration  = settings.LongBreakDurationMinutes;
+            }
+        }
+        SetDurationForMode();
+    }
+
+    private void SetDurationForMode()
+    {
+        totalSeconds = currentMode switch
+        {
+            TimerMode.ShortBreak => shortBreakDuration * 60,
+            TimerMode.LongBreak  => longBreakDuration * 60,
+            _                    => pomodoroDuration * 60
+        };
+        remainingSeconds = totalSeconds;
+    }
+
+    private async Task SwitchMode(TimerMode mode)
+    {
+        StopTicker();
+        isRunning = false;
+        currentMode = mode;
+        SetDurationForMode();
+        await OnModeChanged.InvokeAsync(currentMode);
+    }
+
+    private void Start()
+    {
+        isRunning = true;
+        ticker = new System.Timers.Timer(1000);
+        ticker.Elapsed += async (_, _) =>
+        {
+            if (remainingSeconds > 0)
+            {
+                remainingSeconds--;
+                await InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                StopTicker();
+                isRunning = false;
+                await OnTimerCompleted();
+                await InvokeAsync(StateHasChanged);
+            }
+        };
+        ticker.Start();
+    }
+
+    private void Pause() { StopTicker(); isRunning = false; }
+
+    private async Task Reset()
+    {
+        StopTicker();
+        isRunning = false;
+        SetDurationForMode();
+        await Task.CompletedTask;
+    }
+
+    private async Task OnTimerCompleted()
+    {
+        try { await JS.InvokeVoidAsync("pomodoroSound.play"); } catch { }
+        if (userId is not null)
+        {
+            await SessionService.RecordSessionAsync(userId, ActiveTaskId, currentMode, totalSeconds);
+            if (currentMode == TimerMode.Pomodoro && ActiveTaskId.HasValue)
+            {
+                await TaskService.IncrementPomodoroAsync(ActiveTaskId.Value, userId);
+                await OnPomodoroCompleted.InvokeAsync();
+            }
+        }
+    }
+
+    private void StopTicker() { ticker?.Stop(); ticker?.Dispose(); ticker = null; }
+
+    private static string FormatTime(int seconds)
+    {
+        var m = seconds / 60;
+        var s = seconds % 60;
+        return $"{m:D2}:{s:D2}";
+    }
+
+    public void Dispose() => StopTicker();
+}

@@ -1,0 +1,128 @@
+@page "/settings"
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject ISettingsService SettingsService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+<PageTitle>Settings — PomodoroRelax</PageTitle>
+
+<div class="flex justify-center mt-6">
+    <div class="bg-white/10 rounded-lg p-6 w-full max-w-md">
+        <h2 class="text-xl font-bold text-white mb-6">⚙ Timer Settings</h2>
+
+        @if (settings is null)
+        {
+            <div class="text-white/50 text-center py-8">Loading…</div>
+        }
+        else
+        {
+            @if (saved)
+            {
+                <div class="bg-green-500/30 text-white text-sm rounded p-3 mb-4 flex items-center gap-2">
+                    <span>✓</span> Settings saved!
+                </div>
+            }
+
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-white/80 text-sm mb-1 font-medium">🍅 Pomodoro</label>
+                    <div class="flex items-center gap-3">
+                        <button class="w-8 h-8 bg-white/10 hover:bg-white/20 text-white rounded-md transition font-bold"
+                                @onclick="() => settings.PomodoroDurationMinutes = Math.Max(1, settings.PomodoroDurationMinutes - 1)">−</button>
+                        <input type="number" min="1" max="120"
+                               @bind="settings.PomodoroDurationMinutes"
+                               class="w-20 text-center px-2 py-2 rounded bg-white/20 text-white font-bold text-lg focus:outline-none focus:ring-2 focus:ring-white/40" />
+                        <button class="w-8 h-8 bg-white/10 hover:bg-white/20 text-white rounded-md transition font-bold"
+                                @onclick="() => settings.PomodoroDurationMinutes = Math.Min(120, settings.PomodoroDurationMinutes + 1)">+</button>
+                        <span class="text-white/50 text-sm">min</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-white/80 text-sm mb-1 font-medium">☕ Short Break</label>
+                    <div class="flex items-center gap-3">
+                        <button class="w-8 h-8 bg-white/10 hover:bg-white/20 text-white rounded-md transition font-bold"
+                                @onclick="() => settings.ShortBreakDurationMinutes = Math.Max(1, settings.ShortBreakDurationMinutes - 1)">−</button>
+                        <input type="number" min="1" max="60"
+                               @bind="settings.ShortBreakDurationMinutes"
+                               class="w-20 text-center px-2 py-2 rounded bg-white/20 text-white font-bold text-lg focus:outline-none focus:ring-2 focus:ring-white/40" />
+                        <button class="w-8 h-8 bg-white/10 hover:bg-white/20 text-white rounded-md transition font-bold"
+                                @onclick="() => settings.ShortBreakDurationMinutes = Math.Min(60, settings.ShortBreakDurationMinutes + 1)">+</button>
+                        <span class="text-white/50 text-sm">min</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-white/80 text-sm mb-1 font-medium">🛌 Long Break</label>
+                    <div class="flex items-center gap-3">
+                        <button class="w-8 h-8 bg-white/10 hover:bg-white/20 text-white rounded-md transition font-bold"
+                                @onclick="() => settings.LongBreakDurationMinutes = Math.Max(1, settings.LongBreakDurationMinutes - 1)">−</button>
+                        <input type="number" min="1" max="120"
+                               @bind="settings.LongBreakDurationMinutes"
+                               class="w-20 text-center px-2 py-2 rounded bg-white/20 text-white font-bold text-lg focus:outline-none focus:ring-2 focus:ring-white/40" />
+                        <button class="w-8 h-8 bg-white/10 hover:bg-white/20 text-white rounded-md transition font-bold"
+                                @onclick="() => settings.LongBreakDurationMinutes = Math.Min(120, settings.LongBreakDurationMinutes + 1)">+</button>
+                        <span class="text-white/50 text-sm">min</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-2 pt-4 border-t border-white/10">
+                <p class="text-white/40 text-xs">Changes apply to the timer when you next start a session.</p>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-4">
+                <a href="/"
+                   class="px-4 py-2 text-white/60 hover:text-white text-sm transition">← Back</a>
+                <button class="px-6 py-2 bg-white/20 hover:bg-white/30 text-white font-semibold rounded transition disabled:opacity-50"
+                        disabled="@saving"
+                        @onclick="Save">
+                    @(saving ? "Saving…" : "Save")
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private UserSettings? settings;
+    private bool saved;
+    private bool saving;
+    private string? userId;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || settings is not null) return;
+
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is not null)
+            settings = await SettingsService.GetSettingsAsync(userId);
+
+        StateHasChanged();
+    }
+
+    private async Task Save()
+    {
+        if (settings is null || saving) return;
+        saving = true;
+
+        settings.PomodoroDurationMinutes    = Math.Clamp(settings.PomodoroDurationMinutes,    1, 120);
+        settings.ShortBreakDurationMinutes  = Math.Clamp(settings.ShortBreakDurationMinutes,   1,  60);
+        settings.LongBreakDurationMinutes   = Math.Clamp(settings.LongBreakDurationMinutes,    1, 120);
+
+        await SettingsService.SaveSettingsAsync(settings);
+
+        saving = false;
+        saved = true;
+        StateHasChanged();
+
+        // Auto-dismiss after 2.5 s
+        await Task.Delay(2500);
+        saved = false;
+        StateHasChanged();
+    }
+}

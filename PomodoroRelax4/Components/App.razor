@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PomodoroRelax</title>
+    <base href="/" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        'app-base': '#0c0c18',
+                        'focus-glow':   'rgba(248,113,113,0.18)',
+                        'sbreak-glow':  'rgba(52,211,153,0.18)',
+                        'lbreak-glow':  'rgba(129,140,248,0.18)',
+                        'focus-accent':  '#f87171',
+                        'sbreak-accent': '#34d399',
+                        'lbreak-accent': '#818cf8',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/app.css" />
+    <HeadOutlet />
+</head>
+<body>
+    <Routes />
+    <script src="_framework/blazor.server.js"></script>
+    <script src="js/sound.js"></script>
+</body>
+</html>

@@ -1,0 +1,259 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject ITaskService TaskService
+@rendermode InteractiveServer
+
+<div class="mt-8">
+
+    <!-- Section label -->
+    <div class="flex items-center gap-3 mb-4">
+        <div class="h-px flex-1" style="background:rgba(255,255,255,0.07)"></div>
+        <span class="text-xs font-semibold uppercase tracking-widest" style="color:rgba(255,255,255,0.25)">Tasks</span>
+        <div class="h-px flex-1" style="background:rgba(255,255,255,0.07)"></div>
+    </div>
+
+    <!-- Task Items -->
+    <div class="space-y-2 mb-3">
+        @foreach (var task in tasks)
+        {
+            var isSelected = task.Id == SelectedTaskId;
+            <div class="glass rounded-xl px-4 py-3 flex items-center gap-3 cursor-pointer transition-all duration-150 hover:bg-white/[0.07]"
+                 style="@(isSelected ? "border-left: 3px solid var(--accent, #f87171); padding-left: 13px;" : "border-left: 3px solid transparent;")"
+                 @onclick="() => SelectTask(task)">
+
+                <!-- Complete checkbox -->
+                <button class="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-all duration-150"
+                        style="@(task.IsCompleted ? "background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4)" : "border:1.5px solid rgba(255,255,255,0.25)")"
+                        @onclick:stopPropagation="true"
+                        @onclick="() => ToggleComplete(task)">
+                    @if (task.IsCompleted)
+                    {
+                        <span style="color:rgba(255,255,255,0.8);font-size:0.6rem;line-height:1">✓</span>
+                    }
+                </button>
+
+                <!-- Task info -->
+                <div class="flex-1 min-w-0">
+                    @if (editingTaskId == task.Id)
+                    {
+                        <input @bind="editTitle" @bind:event="oninput"
+                               @onkeydown="e => HandleEditKeyDown(e, task)"
+                               class="w-full focus:outline-none pb-0.5"
+                               style="background:transparent;color:white;border-bottom:1px solid rgba(255,255,255,0.3)"
+                               @ref="editInput" />
+                    }
+                    else
+                    {
+                        <span class="block truncate text-sm @(task.IsCompleted ? "line-through" : "")"
+                              style="color:@(task.IsCompleted ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.85)")">
+                            @task.Title
+                        </span>
+                    }
+                </div>
+
+                <!-- Pomodoro count pill -->
+                <span class="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
+                      style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4)">
+                    @task.CompletedPomodoros / @task.EstimatedPomodoros
+                </span>
+
+                <!-- Actions -->
+                <div class="flex items-center gap-0.5 flex-shrink-0">
+                    <button class="w-7 h-7 rounded-lg flex items-center justify-center transition hover:bg-white/10 text-xs"
+                            style="color:rgba(255,255,255,0.3)"
+                            @onclick:stopPropagation="true"
+                            @onclick="() => MoveUp(task)" title="Move up">▴</button>
+                    <button class="w-7 h-7 rounded-lg flex items-center justify-center transition hover:bg-white/10 text-xs"
+                            style="color:rgba(255,255,255,0.3)"
+                            @onclick:stopPropagation="true"
+                            @onclick="() => MoveDown(task)" title="Move down">▾</button>
+                    <button class="w-7 h-7 rounded-lg flex items-center justify-center transition hover:bg-white/10 text-xs"
+                            style="color:rgba(255,255,255,0.3)"
+                            @onclick:stopPropagation="true"
+                            @onclick="() => StartEdit(task)" title="Edit">✎</button>
+                    <button class="w-7 h-7 rounded-lg flex items-center justify-center transition hover:bg-red-500/20 text-xs"
+                            style="color:rgba(255,255,255,0.3)"
+                            @onclick:stopPropagation="true"
+                            @onclick="() => DeleteTask(task)" title="Delete">✕</button>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Add Task -->
+    @if (isAdding)
+    {
+        <div class="glass rounded-xl p-4 mt-2">
+            <input @bind="newTitle" @bind:event="oninput"
+                   placeholder="What are you working on?"
+                   class="w-full focus:outline-none text-sm pb-2 mb-4"
+                   style="background:transparent;color:white;border-bottom:1px solid rgba(255,255,255,0.15);color-scheme:dark"
+                   placeholder-style="color:rgba(255,255,255,0.3)"
+                   @onkeydown="HandleAddKeyDown" />
+
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs" style="color:rgba(255,255,255,0.4)">Pomodoros</span>
+                    <button class="w-6 h-6 rounded-md flex items-center justify-center transition hover:bg-white/10 text-sm"
+                            style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6)"
+                            @onclick="() => newEstimated = Math.Max(1, newEstimated - 1)">−</button>
+                    <span class="w-5 text-center text-sm" style="color:white">@newEstimated</span>
+                    <button class="w-6 h-6 rounded-md flex items-center justify-center transition hover:bg-white/10 text-sm"
+                            style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6)"
+                            @onclick="() => newEstimated++">+</button>
+                </div>
+
+                <div class="flex gap-2">
+                    <button class="px-3 py-1.5 text-xs rounded-lg transition hover:bg-white/5"
+                            style="color:rgba(255,255,255,0.4)"
+                            @onclick="CancelAdd">Cancel</button>
+                    <button class="px-4 py-1.5 text-xs rounded-lg font-semibold transition hover:opacity-90"
+                            style="background:rgba(255,255,255,0.12);color:white"
+                            @onclick="AddTask">Add</button>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <button class="w-full py-3 rounded-xl text-xs font-medium transition-all duration-150 hover:bg-white/5"
+                style="border:1.5px dashed rgba(255,255,255,0.12);color:rgba(255,255,255,0.3)"
+                @onclick="() => isAdding = true">
+            + Add task
+        </button>
+    }
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    [Parameter]
+    public int? SelectedTaskId { get; set; }
+
+    [Parameter]
+    public EventCallback<(int? Id, string? Title)> OnTaskSelected { get; set; }
+
+    private List<PomodoroTask> tasks = new();
+    private string? userId;
+
+    private bool isAdding;
+    private string newTitle = "";
+    private int newEstimated = 1;
+
+    private int? editingTaskId;
+    private string editTitle = "";
+    private ElementReference editInput;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId is not null)
+                tasks = await TaskService.GetTasksAsync(userId);
+        }
+    }
+
+    public async Task RefreshTasks()
+    {
+        if (userId is not null)
+        {
+            tasks = await TaskService.GetTasksAsync(userId);
+            StateHasChanged();
+        }
+    }
+
+    private async Task SelectTask(PomodoroTask task)
+    {
+        var newId = task.Id == SelectedTaskId ? (int?)null : task.Id;
+        var newTitle = newId.HasValue ? task.Title : null;
+        await OnTaskSelected.InvokeAsync((newId, newTitle));
+    }
+
+    private async Task AddTask()
+    {
+        if (string.IsNullOrWhiteSpace(newTitle) || userId is null) return;
+
+        await TaskService.AddTaskAsync(userId, newTitle.Trim(), newEstimated);
+        tasks = await TaskService.GetTasksAsync(userId);
+
+        newTitle = "";
+        newEstimated = 1;
+        isAdding = false;
+    }
+
+    private void HandleAddKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") _ = AddTask();
+        if (e.Key == "Escape") CancelAdd();
+    }
+
+    private void CancelAdd()
+    {
+        isAdding = false;
+        newTitle = "";
+        newEstimated = 1;
+    }
+
+    private void StartEdit(PomodoroTask task)
+    {
+        editingTaskId = task.Id;
+        editTitle = task.Title;
+    }
+
+    private async Task HandleEditKeyDown(KeyboardEventArgs e, PomodoroTask task)
+    {
+        if (e.Key == "Enter") await SaveEdit(task);
+        if (e.Key == "Escape") editingTaskId = null;
+    }
+
+    private async Task SaveEdit(PomodoroTask task)
+    {
+        if (!string.IsNullOrWhiteSpace(editTitle))
+        {
+            task.Title = editTitle.Trim();
+            await TaskService.UpdateTaskAsync(task);
+        }
+        editingTaskId = null;
+    }
+
+    private async Task ToggleComplete(PomodoroTask task)
+    {
+        task.IsCompleted = !task.IsCompleted;
+        await TaskService.UpdateTaskAsync(task);
+    }
+
+    private async Task DeleteTask(PomodoroTask task)
+    {
+        if (userId is null) return;
+        await TaskService.DeleteTaskAsync(task.Id, userId);
+        tasks = await TaskService.GetTasksAsync(userId);
+
+        if (SelectedTaskId == task.Id)
+            await OnTaskSelected.InvokeAsync((null, null));
+    }
+
+    private async Task MoveUp(PomodoroTask task)
+    {
+        var idx = tasks.IndexOf(task);
+        if (idx <= 0 || userId is null) return;
+
+        var ids = tasks.Select(t => t.Id).ToList();
+        (ids[idx], ids[idx - 1]) = (ids[idx - 1], ids[idx]);
+        await TaskService.ReorderTasksAsync(userId, ids);
+        tasks = await TaskService.GetTasksAsync(userId);
+    }
+
+    private async Task MoveDown(PomodoroTask task)
+    {
+        var idx = tasks.IndexOf(task);
+        if (idx < 0 || idx >= tasks.Count - 1 || userId is null) return;
+
+        var ids = tasks.Select(t => t.Id).ToList();
+        (ids[idx], ids[idx + 1]) = (ids[idx + 1], ids[idx]);
+        await TaskService.ReorderTasksAsync(userId, ids);
+        tasks = await TaskService.GetTasksAsync(userId);
+    }
+}

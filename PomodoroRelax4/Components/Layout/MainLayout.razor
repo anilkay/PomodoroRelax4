@@ -1,0 +1,56 @@
+@inherits LayoutComponentBase
+
+<div class="app-bg" style="@BackgroundStyle">
+
+    <!-- Nav -->
+    <header class="sticky top-0 z-20" style="background: rgba(12,12,24,0.7); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.06);">
+        <div class="max-w-2xl mx-auto px-5 py-3 flex items-center justify-between">
+            <a href="/" class="flex items-center gap-2 text-white font-semibold tracking-tight no-underline hover:opacity-80 transition" style="text-decoration:none">
+                <span style="color: @AccentColor; font-size:1.1rem">&#9679;</span>
+                <span>PomodoroRelax</span>
+            </a>
+            <AuthorizeView>
+                <Authorized>
+                    <div class="flex items-center gap-1">
+                        <a href="/stats"
+                           class="text-white hover:text-white text-xs font-medium px-3 py-1.5 rounded-lg transition hover:bg-white/5" style="opacity:0.5; text-decoration:none">
+                            Stats
+                        </a>
+                        <a href="/settings"
+                           class="text-white hover:text-white text-xs font-medium px-3 py-1.5 rounded-lg transition hover:bg-white/5" style="opacity:0.5; text-decoration:none">
+                            Settings
+                        </a>
+                        <div class="w-px h-4 mx-1" style="background:rgba(255,255,255,0.1)"></div>
+                        <a href="/Account/Logout"
+                           class="text-white text-xs px-3 py-1.5 rounded-lg transition hover:bg-white/5" style="opacity:0.3; text-decoration:none">
+                            Sign out
+                        </a>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+    </header>
+
+    <main class="max-w-2xl mx-auto px-5 py-8">
+        @Body
+    </main>
+</div>
+
+@code {
+    [CascadingParameter]
+    private TimerMode? CurrentMode { get; set; }
+
+    private string AccentColor => CurrentMode switch
+    {
+        TimerMode.ShortBreak => "#34d399",
+        TimerMode.LongBreak  => "#818cf8",
+        _                    => "#f87171"
+    };
+
+    private string BackgroundStyle => CurrentMode switch
+    {
+        TimerMode.ShortBreak => "background: radial-gradient(ellipse at 50% -20%, rgba(52,211,153,0.14) 0%, #0c0c18 65%);",
+        TimerMode.LongBreak  => "background: radial-gradient(ellipse at 50% -20%, rgba(129,140,248,0.14) 0%, #0c0c18 65%);",
+        _                    => "background: radial-gradient(ellipse at 50% -20%, rgba(248,113,113,0.14) 0%, #0c0c18 65%);"
+    };
+}

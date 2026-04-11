@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
 using PomodoroRelax4.Services;
 using System.ComponentModel.DataAnnotations;
 
 namespace PomodoroRelax4.Pages.Account;
 
+[EnableRateLimiting("register")]
 public class RegisterModel : PageModel
 {
     private readonly UserManager<IdentityUser> _userManager;
@@ -27,7 +29,12 @@ public class RegisterModel : PageModel
 
     public string? ErrorMessage { get; set; }
 
-    public IActionResult OnGet() => Page();
+    public IActionResult OnGet(string? error = null)
+    {
+        if (error == "ratelimit")
+            ErrorMessage = "Too many registration attempts. Please try again in an hour.";
+        return Page();
+    }
 
     public async Task<IActionResult> OnPostAsync()
     {

@@ -163,6 +163,7 @@
 
     private void Start()
     {
+        StopTicker();
         isRunning = true;
         ticker = new System.Timers.Timer(1000);
         ticker.Elapsed += async (_, _) =>
@@ -176,6 +177,7 @@
             {
                 StopTicker();
                 isRunning = false;
+                SetDurationForMode(); // reset to full duration so Start works again
                 await OnTimerCompleted();
                 await InvokeAsync(StateHasChanged);
             }

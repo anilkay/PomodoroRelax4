@@ -31,6 +31,10 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.LoginPath = "/Account/Login";
     options.LogoutPath = "/Account/Logout";
     options.ExpireTimeSpan = TimeSpan.FromDays(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    // Only enforce Secure flag when the app is served over HTTPS
+    //options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
 });
 
 // Services

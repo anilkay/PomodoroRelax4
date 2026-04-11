@@ -4,6 +4,7 @@
 @inject ISessionService SessionService
 @inject ITaskService TaskService
 @inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthStateProvider
 @implements IDisposable
 @rendermode InteractiveServer
 
@@ -87,9 +88,6 @@
 </div>
 
 @code {
-    [CascadingParameter]
-    private Task<AuthenticationState>? AuthState { get; set; }
-
     [Parameter] public int? ActiveTaskId { get; set; }
     [Parameter] public string? activeTaskTitle { get; set; }
     [Parameter] public EventCallback<TimerMode> OnModeChanged { get; set; }
@@ -124,21 +122,23 @@
     private const double Circumference = 804.25;
     private string RingOffset => ((1.0 - Progress) * Circumference).ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (AuthState is not null)
+        if (!firstRender) return;
+
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (userId is not null)
         {
-            var state = await AuthState;
-            userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (userId is not null)
-            {
-                var settings = await SettingsService.GetSettingsAsync(userId);
-                pomodoroDuration   = settings.PomodoroDurationMinutes;
-                shortBreakDuration = settings.ShortBreakDurationMinutes;
-                longBreakDuration  = settings.LongBreakDurationMinutes;
-            }
+            var settings = await SettingsService.GetSettingsAsync(userId);
+            pomodoroDuration   = settings.PomodoroDurationMinutes;
+            shortBreakDuration = settings.ShortBreakDurationMinutes;
+            longBreakDuration  = settings.LongBreakDurationMinutes;
         }
+
         SetDurationForMode();
+        StateHasChanged();
     }
 
     private void SetDurationForMode()

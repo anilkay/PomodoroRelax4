@@ -42,7 +42,7 @@ Migrations are applied automatically on startup (`db.Database.Migrate()` in `Pro
 | Layer | Path | Purpose |
 |-------|------|---------|
 | Blazor components | `Components/Pages/` | All app UI — timer, tasks, stats, settings |
-| Razor Pages | `Pages/Account/` | Auth only (Login, Register, Logout) |
+| Razor Pages | `Pages/Account/`, `Pages/Admin/` | Auth and account management (Login, Register, Logout, ChangePassword, Admin/Users) |
 
 ### Why two layers?
 Cookie auth (`SignInManager`) **cannot** be called from within a Blazor Server circuit — the response has already started. All sign-in/sign-out operations must go through Razor Pages, which run in the normal HTTP pipeline.

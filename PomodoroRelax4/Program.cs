@@ -64,6 +64,9 @@ builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<IStatsService, StatsService>();
 builder.Services.AddScoped<IAdminAccountService, AdminAccountService>();
 
+// GET /healthz — for uptime monitors; checks the database connection
+builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database");
+
 // Rate limiting — uses X-Forwarded-For when behind a proxy, falls back to RemoteIpAddress
 builder.Services.AddRateLimiter(options =>
 {
@@ -124,6 +127,7 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapRazorPages();
+app.MapHealthChecks("/healthz");
 
 app.MapRazorComponents<PomodoroRelax4.Components.App>()
     .AddInteractiveServerRenderMode();

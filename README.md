@@ -38,6 +38,8 @@ Public sign-up is closed. `Admin:Email` (env `Admin__Email`) names the administr
 2. Register the admin account right away; after that the register page just says registration is closed.
 3. Signed in as admin, open **Users** in the top bar (`/Admin/Users`) to create accounts for everyone else and hand them their password.
 
+Users change their own password from **Settings → Change password** (`/Account/ChangePassword`). Under **Manage** on each user, the admin can set a new password (which also clears a lockout from failed sign-ins) or delete the user together with their tasks, sessions and settings. The admin account itself is managed through `Admin:Email`, not from this page. A reset or deleted user's other browsers are signed out at the next security-stamp check, within 30 minutes.
+
 The `Admin` role always follows the configured e-mail: on startup it is given to that account and taken from any other, so changing `Admin:Email` and restarting moves it (the old admin sees the change at their next sign-in).
 
 ## Deploy (Podman)
@@ -68,6 +70,8 @@ For a rootful install use `/etc/pomodoro/pomodoro.env`, `/etc/containers/systemd
 The app unit carries `AutoUpdate=registry`. `podman auto-update` (or enabling `podman-auto-update.timer`) pulls a newer `latest` and restarts the app, which applies any new migrations as it starts. To pin a release, replace `latest` with a `sha-<commit>` tag. To run a locally built image instead, `podman build -t localhost/pomodororelax4:latest -f Containerfile .` and point `Image=` at it.
 
 The app listens on `127.0.0.1:8082` over plain HTTP. Put a TLS-terminating proxy in front of it (Cloudflare Tunnel below, or Caddy/nginx); `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` in the env file makes the app trust its `X-Forwarded-*` headers, so the sign-in cookie is marked `Secure` and the registration rate limit (5 per hour per IP) sees the real client address.
+
+`GET /healthz` returns `Healthy` (200) when the app can reach its database and `Unhealthy` (503) otherwise. Point an uptime monitor at it.
 
 ### Cloudflare Tunnel
 

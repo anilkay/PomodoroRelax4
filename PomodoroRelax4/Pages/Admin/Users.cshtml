@@ -59,14 +59,50 @@
     <ul class="divide-y divide-white/10">
         @foreach (var user in Model.Users)
         {
-            <li class="py-2 flex items-center justify-between gap-3">
-                <div class="min-w-0">
-                    <div class="text-white text-sm font-medium truncate">@user.UserName</div>
-                    <div class="text-white/60 text-xs truncate">@user.Email</div>
+            <li class="py-2">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="text-white text-sm font-medium truncate">@user.UserName</div>
+                        <div class="text-white/60 text-xs truncate">@user.Email</div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        @if (user.IsLockedOut)
+                        {
+                            <span class="text-xs text-white bg-red-700/50 rounded px-2 py-0.5">Locked</span>
+                        }
+                        @if (user.IsAdmin)
+                        {
+                            <span class="text-xs text-white bg-white/20 rounded px-2 py-0.5">Admin</span>
+                        }
+                    </div>
                 </div>
-                @if (user.IsAdmin)
+                @if (!user.IsAdmin)
                 {
-                    <span class="text-xs text-white bg-white/20 rounded px-2 py-0.5 shrink-0">Admin</span>
+                    <details class="mt-2">
+                        <summary class="text-white/60 text-xs cursor-pointer hover:text-white">Manage</summary>
+                        <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <form method="post" asp-page-handler="ResetPassword" class="flex gap-2 flex-1">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@user.Id" />
+                                <input type="password" name="newPassword" required minlength="6"
+                                       class="flex-1 min-w-0 px-3 py-1.5 rounded bg-white/20 text-white text-sm placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/40"
+                                       placeholder="New password" autocomplete="new-password" />
+                                <button type="submit"
+                                        class="bg-white/20 hover:bg-white/30 text-white text-sm px-3 py-1.5 rounded transition shrink-0">
+                                    Reset password
+                                </button>
+                            </form>
+                            <form method="post" asp-page-handler="Delete"
+                                  onsubmit="return confirm('Delete @user.UserName and all of their tasks, sessions and settings?');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@user.Id" />
+                                <button type="submit"
+                                        class="bg-red-700/50 hover:bg-red-700/70 text-white text-sm px-3 py-1.5 rounded transition">
+                                    Delete
+                                </button>
+                            </form>
+                        </div>
+                    </details>
                 }
             </li>
         }

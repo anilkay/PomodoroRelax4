@@ -5,22 +5,22 @@
 }
 
 <div class="flex justify-center">
-    <div class="bg-white/10 backdrop-blur rounded-lg p-8 w-full max-w-md">
-        <h2 class="text-2xl font-bold text-white text-center mb-4">Import Data</h2>
+    <div class="bg-surface border border-fg/5 backdrop-blur rounded-lg p-8 w-full max-w-md">
+        <h2 class="text-2xl font-bold text-fg text-center mb-4">Import Data</h2>
 
         @if (Model.StatusMessage is not null)
         {
-            <div class="bg-green-700/40 text-white text-sm rounded p-3 mb-4">@Model.StatusMessage</div>
+            <div class="bg-green-700/40 text-fg text-sm rounded p-3 mb-4">@Model.StatusMessage</div>
         }
         @if (Model.ErrorMessage is not null)
         {
-            <div class="bg-red-700/40 text-white text-sm rounded p-3 mb-4">@Model.ErrorMessage</div>
+            <div class="bg-red-700/40 text-fg text-sm rounded p-3 mb-4">@Model.ErrorMessage</div>
         }
 
-        <p class="text-white/70 text-sm mb-2">
-            Choose an Excel (.xlsx) or JSON file made with <span class="text-white">Settings → Export your data</span>.
+        <p class="text-fg/70 text-sm mb-2">
+            Choose an Excel (.xlsx) or JSON file made with <span class="text-fg">Settings → Export your data</span>.
         </p>
-        <ul class="text-white/60 text-xs mb-6 list-disc pl-5 space-y-1">
+        <ul class="text-fg/60 text-xs mb-6 list-disc pl-5 space-y-1">
             <li>Tasks and sessions are added to your account; nothing is deleted.</li>
             <li>Ones you already have are skipped, so importing the same file twice is safe.</li>
             <li>Your timer settings are replaced by the ones in the file.</li>
@@ -33,16 +33,16 @@
             <input asp-for="Upload" type="file" accept=".xlsx,.json" required
                    data-max-bytes="@PomodoroRelax4.Services.ImportService.MaxFileBytes"
                    data-max-bytes-message="The file is larger than 5 MB."
-                   class="block w-full text-sm text-white/80 mb-6 file:mr-3 file:px-4 file:py-2 file:rounded file:border-0 file:bg-white/20 file:text-white hover:file:bg-white/30" />
+                   class="block w-full text-sm text-fg/80 mb-6 file:mr-3 file:px-4 file:py-2 file:rounded file:border-0 file:bg-fg/20 file:text-fg hover:file:bg-fg/30" />
 
             <button type="submit"
-                    class="w-full bg-white/20 hover:bg-white/30 text-white font-semibold py-2 rounded transition">
+                    class="w-full bg-fg/20 hover:bg-fg/30 text-fg font-semibold py-2 rounded transition">
                 Import
             </button>
         </form>
 
-        <p class="text-white/60 text-sm text-center mt-4">
-            <a href="/settings" class="hover:text-white">&larr; Back to settings</a>
+        <p class="text-fg/60 text-sm text-center mt-4">
+            <a href="/settings" class="hover:text-fg">&larr; Back to settings</a>
         </p>
     </div>
 </div>

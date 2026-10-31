@@ -79,8 +79,14 @@ await using var db = await _factory.CreateDbContextAsync();
 ## Key Conventions
 
 ### Styling
-- **Tailwind CSS via CDN** (`<script src="https://cdn.tailwindcss.com">` in `App.razor`) with a custom config block defining `app-base`, `focus-accent`, `sbreak-accent`, `lbreak-accent` colors.
-- **Glass-morphism cards**: use the `.glass` CSS class (`bg-white/4`, `backdrop-filter:blur(12px)`, `border: 1px solid rgba(255,255,255,0.08)`).
+- **Tailwind Play 3.4.17**, served from `wwwroot/lib/tailwindcss/` and configured in `wwwroot/js/tailwind.config.js`; both layouts load it.
+- **Light and dark themes.** `js/theme.js` sets `data-theme` on `<html>` before the first paint, from localStorage or else the system setting. The ☀/☾ button (`data-theme-toggle`, handled in `site.js`) switches it. Theme colours are CSS variables in `wwwroot/css/app.css`. Never hard-code `white`, `rgba(255,255,255,…)` or `#0c0c18`:
+  - `text-fg`, `bg-fg/10`, `border-fg/20` and so on for the foreground: white on dark, ink on light.
+  - `bg-surface` for cards and `bg-field` for text inputs.
+  - `text-danger` for validation errors.
+  - `rgb(var(--fg) / 0.4)` and `rgb(var(--bg))` in inline styles. SVG presentation attributes don't resolve `var()`, so use `style="stroke: …"`.
+  - `text-app-base` (fixed dark ink) for text on accent-coloured fills.
+- **Glass-morphism cards**: use the `.glass` CSS class, theme-aware.
 - **Timer digits**: use class `timer-digits` (JetBrains Mono, tabular-nums).
 - All color accents are computed from `TimerMode` with a C# switch expression. Never hardcode mode colors — add a new arm to the existing switches in `TimerDisplay.razor` and `MainLayout.razor`.
 

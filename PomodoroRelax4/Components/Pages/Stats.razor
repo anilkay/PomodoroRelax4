@@ -11,53 +11,53 @@
 
 @if (error is not null)
 {
-    <div class="text-red-300 text-center mt-12 bg-white/10 rounded-lg p-4">⚠ @error</div>
+    <div class="text-danger text-center mt-12 bg-surface border border-fg/5 rounded-lg p-4">⚠ @error</div>
 }
 else if (vm is null)
 {
-    <div class="text-white/60 text-center mt-12">Loading…</div>
+    <div class="text-fg/60 text-center mt-12">Loading…</div>
 }
 else
 {
     <!-- Summary Cards -->
     <div class="grid grid-cols-2 gap-3 mb-6">
-        <div class="bg-white/10 rounded-lg p-4 text-center">
-            <div class="text-4xl font-bold text-white">@vm.TodayPomodoros</div>
-            <div class="text-white/60 text-sm mt-1">Today</div>
+        <div class="bg-surface border border-fg/5 rounded-lg p-4 text-center">
+            <div class="text-4xl font-bold text-fg">@vm.TodayPomodoros</div>
+            <div class="text-fg/60 text-sm mt-1">Today</div>
         </div>
-        <div class="bg-white/10 rounded-lg p-4 text-center">
-            <div class="text-4xl font-bold text-white">@vm.WeekPomodoros</div>
-            <div class="text-white/60 text-sm mt-1">This Week</div>
+        <div class="bg-surface border border-fg/5 rounded-lg p-4 text-center">
+            <div class="text-4xl font-bold text-fg">@vm.WeekPomodoros</div>
+            <div class="text-fg/60 text-sm mt-1">This Week</div>
         </div>
-        <div class="bg-white/10 rounded-lg p-4 text-center">
-            <div class="text-4xl font-bold text-white">@vm.TotalPomodoros</div>
-            <div class="text-white/60 text-sm mt-1">All Time 🍅</div>
+        <div class="bg-surface border border-fg/5 rounded-lg p-4 text-center">
+            <div class="text-4xl font-bold text-fg">@vm.TotalPomodoros</div>
+            <div class="text-fg/60 text-sm mt-1">All Time 🍅</div>
         </div>
-        <div class="bg-white/10 rounded-lg p-4 text-center">
-            <div class="text-4xl font-bold text-white">@FormatTime(vm.TotalFocusMinutes)</div>
-            <div class="text-white/60 text-sm mt-1">Focus Time</div>
+        <div class="bg-surface border border-fg/5 rounded-lg p-4 text-center">
+            <div class="text-4xl font-bold text-fg">@FormatTime(vm.TotalFocusMinutes)</div>
+            <div class="text-fg/60 text-sm mt-1">Focus Time</div>
         </div>
     </div>
 
     <!-- Task Progress -->
-    <div class="bg-white/10 rounded-lg p-4 mb-6">
+    <div class="bg-surface border border-fg/5 rounded-lg p-4 mb-6">
         <div class="flex items-center justify-between mb-2">
-            <span class="text-white font-semibold">Tasks Completed</span>
-            <span class="text-white font-bold">@vm.TasksCompleted / @vm.TasksTotal</span>
+            <span class="text-fg font-semibold">Tasks Completed</span>
+            <span class="text-fg font-bold">@vm.TasksCompleted / @vm.TasksTotal</span>
         </div>
         @if (vm.TasksTotal > 0)
         {
             var pct = (int)((double)vm.TasksCompleted / vm.TasksTotal * 100);
-            <div class="w-full bg-white/10 rounded-full h-2">
-                <div class="bg-white/70 h-2 rounded-full transition-all duration-500"
+            <div class="w-full bg-fg/10 rounded-full h-2">
+                <div class="bg-fg/70 h-2 rounded-full transition-all duration-500"
                      style="width:@pct%"></div>
             </div>
         }
     </div>
 
     <!-- Last 7 Days -->
-    <div class="bg-white/10 rounded-lg p-4 mb-6">
-        <h3 class="text-white font-semibold mb-4">Last 7 Days</h3>
+    <div class="bg-surface border border-fg/5 rounded-lg p-4 mb-6">
+        <h3 class="text-fg font-semibold mb-4">Last 7 Days</h3>
         @{
             var maxPomodoros = vm.Last7Days.Max(d => d.Pomodoros);
             if (maxPomodoros == 0) maxPomodoros = 1;
@@ -68,12 +68,12 @@ else
                 var barPct = (int)((double)day.Pomodoros / maxPomodoros * 100);
                 var isToday = day == vm.Last7Days[^1];
                 <div class="flex items-center gap-3">
-                    <span class="text-white/60 text-xs w-8 shrink-0">@day.Date.ToString("ddd")</span>
-                    <div class="flex-1 bg-white/10 rounded h-6 relative overflow-hidden">
-                        <div class="h-full rounded transition-all duration-500 @(isToday ? "bg-white/60" : "bg-white/30")"
+                    <span class="text-fg/60 text-xs w-8 shrink-0">@day.Date.ToString("ddd")</span>
+                    <div class="flex-1 bg-fg/10 rounded h-6 relative overflow-hidden">
+                        <div class="h-full rounded transition-all duration-500 @(isToday ? "bg-fg/60" : "bg-fg/30")"
                              style="width:@(barPct)%"></div>
                     </div>
-                    <span class="text-white text-xs w-6 text-right shrink-0">@day.Pomodoros</span>
+                    <span class="text-fg text-xs w-6 text-right shrink-0">@day.Pomodoros</span>
                 </div>
             }
         </div>
@@ -82,22 +82,22 @@ else
     <!-- Recent Sessions -->
     @if (vm.RecentSessions.Any())
     {
-        <div class="bg-white/10 rounded-lg p-4">
-            <h3 class="text-white font-semibold mb-3">Recent Sessions</h3>
+        <div class="bg-surface border border-fg/5 rounded-lg p-4">
+            <h3 class="text-fg font-semibold mb-3">Recent Sessions</h3>
             <div class="space-y-2">
                 @foreach (var s in vm.RecentSessions)
                 {
                     <div class="flex items-center justify-between text-sm">
                         <div class="flex items-center gap-2">
-                            <span class="@BadgeClass(s.SessionType) text-white text-xs px-2 py-0.5 rounded-full">
+                            <span class="@BadgeClass(s.SessionType) text-app-base font-semibold text-xs px-2 py-0.5 rounded-full">
                                 @ModeLabel(s.SessionType)
                             </span>
                             @if (s.TaskTitle is not null)
                             {
-                                <span class="text-white/70 truncate max-w-[160px]">@s.TaskTitle</span>
+                                <span class="text-fg/70 truncate max-w-[160px]">@s.TaskTitle</span>
                             }
                         </div>
-                        <div class="text-white/50 text-xs whitespace-nowrap">
+                        <div class="text-fg/50 text-xs whitespace-nowrap">
                             @s.DurationMinutes min · @s.CompletedAt.ToString("MMM d HH:mm")
                         </div>
                     </div>
@@ -107,7 +107,7 @@ else
     }
 
     <div class="text-center mt-6">
-        <a href="/" class="text-white/60 hover:text-white text-sm transition">← Back to Timer</a>
+        <a href="/" class="text-fg/60 hover:text-fg text-sm transition">← Back to Timer</a>
     </div>
 }
 

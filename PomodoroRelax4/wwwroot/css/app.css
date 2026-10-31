@@ -1,10 +1,46 @@
 /* PomodoroRelax — custom styles */
 
+/* Theme colours as "R G B" so they work with alpha: rgb(var(--fg) / 0.4).
+   js/theme.js sets data-theme on <html>; the media query covers pages without JS. */
+:root,
+:root[data-theme="dark"] {
+    --bg: 12 12 24;      /* #0c0c18 */
+    --fg: 255 255 255;
+    --danger: 252 165 165; /* red-300 */
+    --header: 12 12 24;
+    --surface: rgb(255 255 255 / 0.10);
+    --field: rgb(255 255 255 / 0.16);
+    color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+    --bg: 246 244 239;   /* warm paper */
+    --fg: 28 27 46;      /* ink */
+    --danger: 185 28 28; /* red-700 */
+    --header: 252 251 248;
+    --surface: rgb(255 255 255 / 0.80);
+    --field: rgb(255 255 255);
+    color-scheme: light;
+}
+
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme]) {
+        --bg: 246 244 239;
+        --fg: 28 27 46;
+        --danger: 185 28 28;
+        --header: 252 251 248;
+        --surface: rgb(255 255 255 / 0.80);
+        --field: rgb(255 255 255);
+        color-scheme: light;
+    }
+}
+
 html, body {
     margin: 0;
     padding: 0;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background: #0c0c18;
+    background: rgb(var(--bg));
+    color: rgb(var(--fg));
 }
 
 /* Blazor reconnect UI */
@@ -41,12 +77,18 @@ html, body {
 
 /* Glass card */
 .glass {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgb(var(--fg) / 0.04);
     backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgb(var(--fg) / 0.08);
 }
+
+/* Light/dark toggle: show the icon of the theme it switches to */
+.theme-toggle .icon-to-light { display: inline; }
+.theme-toggle .icon-to-dark  { display: none; }
+:root[data-theme="light"] .theme-toggle .icon-to-light { display: none; }
+:root[data-theme="light"] .theme-toggle .icon-to-dark  { display: inline; }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: rgb(var(--fg) / 0.12); border-radius: 2px; }

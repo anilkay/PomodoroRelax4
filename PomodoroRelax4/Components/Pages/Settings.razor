@@ -12,92 +12,92 @@
 <SignOutGuard />
 
 <div class="flex justify-center mt-6">
-    <div class="bg-white/10 rounded-lg p-6 w-full max-w-md">
-        <h2 class="text-xl font-bold text-white mb-6">⚙ Timer Settings</h2>
+    <div class="bg-surface border border-fg/5 rounded-lg p-6 w-full max-w-md">
+        <h2 class="text-xl font-bold text-fg mb-6">⚙ Timer Settings</h2>
 
         @if (settings is null)
         {
-            <div class="text-white/50 text-center py-8">Loading…</div>
+            <div class="text-fg/50 text-center py-8">Loading…</div>
         }
         else
         {
             @if (saved)
             {
-                <div class="bg-green-500/30 text-white text-sm rounded p-3 mb-4 flex items-center gap-2">
+                <div class="bg-green-500/30 text-fg text-sm rounded p-3 mb-4 flex items-center gap-2">
                     <span>✓</span> Settings saved!
                 </div>
             }
 
             <div class="space-y-5">
                 <div>
-                    <label class="block text-white/80 text-sm mb-1 font-medium">🍅 Pomodoro</label>
+                    <label class="block text-fg/80 text-sm mb-1 font-medium">🍅 Pomodoro</label>
                     <div class="flex items-center gap-3">
-                        <button class="w-8 h-8 bg-white/10 hover:bg-white/20 text-white rounded-md transition font-bold"
+                        <button class="w-8 h-8 bg-fg/10 hover:bg-fg/20 text-fg rounded-md transition font-bold"
                                 @onclick="() => settings.PomodoroDurationMinutes = Math.Max(1, settings.PomodoroDurationMinutes - 1)">−</button>
                         <input type="number" min="1" max="120"
                                @bind="settings.PomodoroDurationMinutes"
-                               class="w-20 text-center px-2 py-2 rounded bg-white/20 text-white font-bold text-lg focus:outline-none focus:ring-2 focus:ring-white/40" />
-                        <button class="w-8 h-8 bg-white/10 hover:bg-white/20 text-white rounded-md transition font-bold"
+                               class="w-20 text-center px-2 py-2 rounded bg-field border border-fg/10 text-fg font-bold text-lg focus:outline-none focus:ring-2 focus:ring-fg/40" />
+                        <button class="w-8 h-8 bg-fg/10 hover:bg-fg/20 text-fg rounded-md transition font-bold"
                                 @onclick="() => settings.PomodoroDurationMinutes = Math.Min(120, settings.PomodoroDurationMinutes + 1)">+</button>
-                        <span class="text-white/50 text-sm">min</span>
+                        <span class="text-fg/50 text-sm">min</span>
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-white/80 text-sm mb-1 font-medium">☕ Short Break</label>
+                    <label class="block text-fg/80 text-sm mb-1 font-medium">☕ Short Break</label>
                     <div class="flex items-center gap-3">
-                        <button class="w-8 h-8 bg-white/10 hover:bg-white/20 text-white rounded-md transition font-bold"
+                        <button class="w-8 h-8 bg-fg/10 hover:bg-fg/20 text-fg rounded-md transition font-bold"
                                 @onclick="() => settings.ShortBreakDurationMinutes = Math.Max(1, settings.ShortBreakDurationMinutes - 1)">−</button>
                         <input type="number" min="1" max="60"
                                @bind="settings.ShortBreakDurationMinutes"
-                               class="w-20 text-center px-2 py-2 rounded bg-white/20 text-white font-bold text-lg focus:outline-none focus:ring-2 focus:ring-white/40" />
-                        <button class="w-8 h-8 bg-white/10 hover:bg-white/20 text-white rounded-md transition font-bold"
+                               class="w-20 text-center px-2 py-2 rounded bg-field border border-fg/10 text-fg font-bold text-lg focus:outline-none focus:ring-2 focus:ring-fg/40" />
+                        <button class="w-8 h-8 bg-fg/10 hover:bg-fg/20 text-fg rounded-md transition font-bold"
                                 @onclick="() => settings.ShortBreakDurationMinutes = Math.Min(60, settings.ShortBreakDurationMinutes + 1)">+</button>
-                        <span class="text-white/50 text-sm">min</span>
+                        <span class="text-fg/50 text-sm">min</span>
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-white/80 text-sm mb-1 font-medium">🛌 Long Break</label>
+                    <label class="block text-fg/80 text-sm mb-1 font-medium">🛌 Long Break</label>
                     <div class="flex items-center gap-3">
-                        <button class="w-8 h-8 bg-white/10 hover:bg-white/20 text-white rounded-md transition font-bold"
+                        <button class="w-8 h-8 bg-fg/10 hover:bg-fg/20 text-fg rounded-md transition font-bold"
                                 @onclick="() => settings.LongBreakDurationMinutes = Math.Max(1, settings.LongBreakDurationMinutes - 1)">−</button>
                         <input type="number" min="1" max="120"
                                @bind="settings.LongBreakDurationMinutes"
-                               class="w-20 text-center px-2 py-2 rounded bg-white/20 text-white font-bold text-lg focus:outline-none focus:ring-2 focus:ring-white/40" />
-                        <button class="w-8 h-8 bg-white/10 hover:bg-white/20 text-white rounded-md transition font-bold"
+                               class="w-20 text-center px-2 py-2 rounded bg-field border border-fg/10 text-fg font-bold text-lg focus:outline-none focus:ring-2 focus:ring-fg/40" />
+                        <button class="w-8 h-8 bg-fg/10 hover:bg-fg/20 text-fg rounded-md transition font-bold"
                                 @onclick="() => settings.LongBreakDurationMinutes = Math.Min(120, settings.LongBreakDurationMinutes + 1)">+</button>
-                        <span class="text-white/50 text-sm">min</span>
+                        <span class="text-fg/50 text-sm">min</span>
                     </div>
                 </div>
             </div>
 
-            <div class="mt-2 pt-4 border-t border-white/10">
-                <p class="text-white/40 text-xs">Changes apply to the timer when you next start a session.</p>
+            <div class="mt-2 pt-4 border-t border-fg/10">
+                <p class="text-fg/40 text-xs">Changes apply to the timer when you next start a session.</p>
             </div>
 
             <div class="flex justify-end items-center gap-3 mt-4">
                 <a href="/Account/ChangePassword"
-                   class="mr-auto text-white/60 hover:text-white text-sm transition">Change password</a>
+                   class="mr-auto text-fg/60 hover:text-fg text-sm transition">Change password</a>
                 <a href="/"
-                   class="px-4 py-2 text-white/60 hover:text-white text-sm transition">← Back</a>
-                <button class="px-6 py-2 bg-white/20 hover:bg-white/30 text-white font-semibold rounded transition disabled:opacity-50"
+                   class="px-4 py-2 text-fg/60 hover:text-fg text-sm transition">← Back</a>
+                <button class="px-6 py-2 bg-fg/20 hover:bg-fg/30 text-fg font-semibold rounded transition disabled:opacity-50"
                         disabled="@saving"
                         @onclick="Save">
                     @(saving ? "Saving…" : "Save")
                 </button>
             </div>
 
-            <div class="mt-6 pt-4 border-t border-white/10">
-                <h3 class="text-white font-semibold text-sm mb-1">Export your data</h3>
-                <p class="text-white/40 text-xs mb-3">Tasks, sessions and settings. Times are in UTC.</p>
+            <div class="mt-6 pt-4 border-t border-fg/10">
+                <h3 class="text-fg font-semibold text-sm mb-1">Export your data</h3>
+                <p class="text-fg/40 text-xs mb-3">Tasks, sessions and settings. Times are in UTC.</p>
                 <div class="flex flex-wrap gap-3">
                     <a href="/export/xlsx" download
-                       class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm rounded transition">Excel (.xlsx)</a>
+                       class="px-4 py-2 bg-fg/10 hover:bg-fg/20 text-fg text-sm rounded transition">Excel (.xlsx)</a>
                     <a href="/export/json" download
-                       class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm rounded transition">JSON</a>
+                       class="px-4 py-2 bg-fg/10 hover:bg-fg/20 text-fg text-sm rounded transition">JSON</a>
                     <a href="/Data/Import"
-                       class="px-4 py-2 text-white/60 hover:text-white text-sm transition">Import a file…</a>
+                       class="px-4 py-2 text-fg/60 hover:text-fg text-sm transition">Import a file…</a>
                 </div>
             </div>
         }

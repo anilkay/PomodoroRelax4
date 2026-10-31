@@ -40,6 +40,10 @@ Public sign-up is closed. `Admin:Email` (env `Admin__Email`) names the administr
 
 Users change their own password from **Settings → Change password** (`/Account/ChangePassword`). Under **Manage** on each user, the admin can set a new password (which also clears a lockout from failed sign-ins) or delete the user together with their tasks, sessions and settings. The admin account itself is managed through `Admin:Email`, not from this page. A changed, reset or deleted account's other browsers and open tabs are signed out at the next security-stamp check, within 5 minutes.
 
+## Light and dark mode
+
+The ☀/☾ button in the top bar switches between a light and a dark theme, on the sign-in pages as well. The choice is stored in the browser (localStorage), so each device keeps its own. Until someone picks one, the operating system's setting decides. Colours come from CSS variables in `wwwroot/css/app.css`.
+
 ## Export
 
 **Settings → Export your data** downloads the signed-in user's account name and e-mail, settings, tasks and sessions. Times are in UTC.

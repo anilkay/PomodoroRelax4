@@ -12,18 +12,18 @@
 <div class="flex flex-col items-center pt-4 pb-2">
 
     <!-- Mode selector pills -->
-    <div class="flex gap-1 mb-10 p-1 rounded-full" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08)">
-        <button class="px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 @(currentMode == TimerMode.Pomodoro ? "text-app-base font-bold" : "text-white/40 hover:text-white/70")"
+    <div class="flex gap-1 mb-10 p-1 rounded-full" style="background:rgb(var(--fg) / 0.05); border:1px solid rgb(var(--fg) / 0.08)">
+        <button class="px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 @(currentMode == TimerMode.Pomodoro ? "text-app-base font-bold" : "text-fg/40 hover:text-fg/70")"
                 style="@(currentMode == TimerMode.Pomodoro ? $"background:{AccentColor}" : "")"
                 @onclick="() => SwitchMode(TimerMode.Pomodoro)">
             Focus
         </button>
-        <button class="px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 @(currentMode == TimerMode.ShortBreak ? "text-app-base font-bold" : "text-white/40 hover:text-white/70")"
+        <button class="px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 @(currentMode == TimerMode.ShortBreak ? "text-app-base font-bold" : "text-fg/40 hover:text-fg/70")"
                 style="@(currentMode == TimerMode.ShortBreak ? $"background:{AccentColor}" : "")"
                 @onclick="() => SwitchMode(TimerMode.ShortBreak)">
             Short Break
         </button>
-        <button class="px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 @(currentMode == TimerMode.LongBreak ? "text-app-base font-bold" : "text-white/40 hover:text-white/70")"
+        <button class="px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 @(currentMode == TimerMode.LongBreak ? "text-app-base font-bold" : "text-fg/40 hover:text-fg/70")"
                 style="@(currentMode == TimerMode.LongBreak ? $"background:{AccentColor}" : "")"
                 @onclick="() => SwitchMode(TimerMode.LongBreak)">
             Long Break
@@ -34,7 +34,7 @@
     <div class="relative flex items-center justify-center mb-10" style="width:288px;height:288px">
         <svg class="absolute inset-0" width="288" height="288" viewBox="0 0 288 288">
             <!-- track -->
-            <circle cx="144" cy="144" r="128" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="5"/>
+            <circle cx="144" cy="144" r="128" fill="none" style="stroke: rgb(var(--fg) / 0.06)" stroke-width="5"/>
             <!-- progress -->
             <circle cx="144" cy="144" r="128"
                     fill="none"
@@ -49,10 +49,10 @@
 
         <!-- Timer digits -->
         <div class="relative text-center select-none z-10">
-            <div class="timer-digits text-white" style="font-size:4.5rem;line-height:1">@FormatTime(remainingSeconds)</div>
+            <div class="timer-digits text-fg" style="font-size:4.5rem;line-height:1">@FormatTime(remainingSeconds)</div>
             @if (ActiveTaskId.HasValue && activeTaskTitle is not null)
             {
-                <p class="mt-2 text-xs truncate max-w-[180px]" style="color:rgba(255,255,255,0.35)">@activeTaskTitle</p>
+                <p class="mt-2 text-xs truncate max-w-[180px]" style="color:rgb(var(--fg) / 0.35)">@activeTaskTitle</p>
             }
         </div>
     </div>
@@ -69,8 +69,8 @@
         }
         else
         {
-            <button class="px-10 py-3 rounded-full font-bold text-sm uppercase tracking-widest transition-all duration-200 hover:scale-105 active:scale-95 text-white"
-                    style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12)"
+            <button class="px-10 py-3 rounded-full font-bold text-sm uppercase tracking-widest transition-all duration-200 hover:scale-105 active:scale-95 text-fg"
+                    style="background:rgb(var(--fg) / 0.08); border:1px solid rgb(var(--fg) / 0.12)"
                     @onclick="Pause">
                 Pause
             </button>
@@ -79,7 +79,7 @@
         @if (isRunning || remainingSeconds < totalSeconds)
         {
             <button class="w-11 h-11 rounded-full text-lg transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
-                    style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.4)"
+                    style="background:rgb(var(--fg) / 0.05); border:1px solid rgb(var(--fg) / 0.1); color:rgb(var(--fg) / 0.4)"
                     @onclick="Reset"
                     title="Reset">
                 ↺

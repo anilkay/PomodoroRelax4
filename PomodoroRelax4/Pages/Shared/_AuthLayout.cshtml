@@ -4,21 +4,28 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] — PomodoroRelax</title>
+    <script src="/js/theme.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/css/app.css" />
     <script src="/lib/tailwindcss/tailwindcss-play-3.4.17.js"></script>
     <script src="/js/tailwind.config.js"></script>
     <script src="/js/site.js" defer></script>
 </head>
-@* Same dark base and faint focus-red glow as the app (MainLayout), so signing in doesn't flash a red page *@
+@* Same base colour and faint focus-red glow as the app (MainLayout), in either theme *@
 <body class="min-h-screen font-sans antialiased"
-      style="background: radial-gradient(ellipse at 50% -20%, rgba(248,113,113,0.10) 0%, #0c0c18 65%) #0c0c18 fixed;">
+      style="background: radial-gradient(ellipse at 50% -20%, rgba(248,113,113,0.10) 0%, rgb(var(--bg)) 65%) rgb(var(--bg)) fixed;">
     <header class="max-w-xl mx-auto pt-4 px-4">
-        <nav class="flex items-center justify-between border-b border-white/10 pb-3 mb-6">
-            <a href="/" class="flex items-center gap-2 text-white font-semibold tracking-tight hover:opacity-80 transition">
+        <nav class="flex items-center justify-between border-b border-fg/10 pb-3 mb-6">
+            <a href="/" class="flex items-center gap-2 text-fg font-semibold tracking-tight hover:opacity-80 transition">
                 <span style="color:#f87171; font-size:1.1rem">&#9679;</span>
                 <span>PomodoroRelax</span>
             </a>
+            <button type="button" data-theme-toggle
+                    class="theme-toggle text-fg text-sm w-8 h-8 rounded-lg transition hover:bg-fg/5" style="opacity:0.5"
+                    title="Switch light / dark" aria-label="Switch between light and dark mode">
+                <span class="icon-to-light">☀</span><span class="icon-to-dark">☾</span>
+            </button>
         </nav>
     </header>
     <main class="max-w-xl mx-auto px-4">

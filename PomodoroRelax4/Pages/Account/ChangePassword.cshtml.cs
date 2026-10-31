@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using PomodoroRelax4.Services;
 using System.ComponentModel.DataAnnotations;
 
 namespace PomodoroRelax4.Pages.Account;
@@ -61,7 +62,7 @@ public class ChangePasswordModel : PageModel
         [Required]
         public string CurrentPassword { get; set; } = string.Empty;
 
-        [Required, MinLength(6)]
+        [Required, MinLength(PasswordRules.MinLength)]
         public string NewPassword { get; set; } = string.Empty;
 
         [Required]

@@ -38,7 +38,16 @@ Public sign-up is closed. `Admin:Email` (env `Admin__Email`) names the administr
 2. Register the admin account right away; after that the register page just says registration is closed.
 3. Signed in as admin, open **Users** in the top bar (`/Admin/Users`) to create accounts for everyone else and hand them their password.
 
-Users change their own password from **Settings → Change password** (`/Account/ChangePassword`). Under **Manage** on each user, the admin can set a new password (which also clears a lockout from failed sign-ins) or delete the user together with their tasks, sessions and settings. The admin account itself is managed through `Admin:Email`, not from this page. A reset or deleted user's other browsers are signed out at the next security-stamp check, within 30 minutes.
+Users change their own password from **Settings → Change password** (`/Account/ChangePassword`). Under **Manage** on each user, the admin can set a new password (which also clears a lockout from failed sign-ins) or delete the user together with their tasks, sessions and settings. The admin account itself is managed through `Admin:Email`, not from this page. A changed, reset or deleted account's other browsers and open tabs are signed out at the next security-stamp check, within 5 minutes.
+
+## Security
+
+- Passwords need at least 12 characters (`Services/PasswordRules.cs`).
+- Sign-in is limited to 10 attempts per 15 minutes per client IP, and the admin-only register form to 5 per hour. An account locks for 15 minutes after 20 failed attempts in a row; that limit is a backstop for guesses spread over many IPs, and is set high so a single IP can't lock someone out quickly. A successful sign-in resets the count.
+- In Production the sign-in cookie is always `Secure`, plain HTTP is redirected to HTTPS (308, except `/healthz`) and HSTS is on.
+- Every response carries a Content-Security-Policy with `script-src 'self'`, plus `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` and `Referrer-Policy`. So scripts live in `wwwroot/js`, never inline (`<form data-confirm="...">` replaces `onsubmit="confirm(...)"`). Tailwind's Play script is served from `wwwroot/lib/tailwindcss/` (3.4.17, from `https://cdn.tailwindcss.com/3.4.17`, SHA-256 `176e894661aa9cdc9a5cba6c720044cbbf7b8bd80d1c9a142a7c24b1b6c50d15`). It is not loaded from the CDN, because that sends no CORS headers and so can't be checked with Subresource Integrity. To upgrade it, add the new file and update both layouts (`Components/App.razor`, `Pages/Shared/_AuthLayout.cshtml`).
+- Signing out is an antiforgery-checked POST; a GET to `/Account/Logout` only goes home.
+- The workflow's actions are pinned to commit SHAs. `.github/dependabot.yml` opens weekly PRs for them and for NuGet packages, including the `System.Security.Cryptography.Pkcs` pin in the csproj that lifts a vulnerable transitive version from SqlClient.
 
 The `Admin` role always follows the configured e-mail: on startup it is given to that account and taken from any other, so changing `Admin:Email` and restarting moves it (the old admin sees the change at their next sign-in).
 
@@ -69,7 +78,7 @@ For a rootful install use `/etc/pomodoro/pomodoro.env`, `/etc/containers/systemd
 
 The app unit carries `AutoUpdate=registry`. `podman auto-update` (or enabling `podman-auto-update.timer`) pulls a newer `latest` and restarts the app, which applies any new migrations as it starts. To pin a release, replace `latest` with a `sha-<commit>` tag. To run a locally built image instead, `podman build -t localhost/pomodororelax4:latest -f Containerfile .` and point `Image=` at it.
 
-The app listens on `127.0.0.1:8082` over plain HTTP. Put a TLS-terminating proxy in front of it (Cloudflare Tunnel below, or Caddy/nginx); `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` in the env file makes the app trust its `X-Forwarded-*` headers, so the sign-in cookie is marked `Secure` and the registration rate limit (5 per hour per IP) sees the real client address.
+The app listens on `127.0.0.1:8082` over plain HTTP. Put a TLS-terminating proxy in front of it (Cloudflare Tunnel below, or Caddy/nginx); `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` in the env file makes the app trust its `X-Forwarded-*` headers, so it knows the request came over HTTPS and the sign-in and register rate limits see the real client address. Keep it on: without it every request looks like plain HTTP and the HTTPS redirect loops. Also turn on **SSL/TLS → Edge Certificates → Always Use HTTPS** in Cloudflare, so a password typed on an `http://` URL never leaves the browser unencrypted.
 
 `GET /healthz` returns `Healthy` (200) when the app can reach its database and `Unhealthy` (503) otherwise. Point an uptime monitor at it.
 

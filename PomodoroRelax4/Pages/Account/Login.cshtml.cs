@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
 using System.ComponentModel.DataAnnotations;
 
 namespace PomodoroRelax4.Pages.Account;
 
+[EnableRateLimiting("login")]
 public class LoginModel : PageModel
 {
     private readonly SignInManager<IdentityUser> _signInManager;
@@ -22,9 +24,11 @@ public class LoginModel : PageModel
     public string? ReturnUrl { get; set; }
     public string? ErrorMessage { get; set; }
 
-    public void OnGet(string? returnUrl = null)
+    public void OnGet(string? returnUrl = null, string? error = null)
     {
         ReturnUrl = returnUrl ?? "/";
+        if (error == "ratelimit")
+            ErrorMessage = "Too many sign-in attempts from your network. Try again in 15 minutes.";
     }
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)

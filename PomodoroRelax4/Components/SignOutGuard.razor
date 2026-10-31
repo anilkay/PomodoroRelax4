@@ -1,0 +1,25 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@implements IDisposable
+
+@* Put on every interactive page. Pages are interactive one by one, so the router's
+   CascadingAuthenticationState is static and never hears that the circuit's user changed.
+   When IdentityRevalidatingAuthenticationStateProvider finds the account deleted or its
+   password changed, this sends the tab to sign-in instead of letting it keep working. *@
+
+@code {
+    protected override void OnInitialized()
+        => AuthStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+
+    private async void OnAuthenticationStateChanged(Task<AuthenticationState> stateTask)
+    {
+        var state = await stateTask;
+        if (state.User.Identity?.IsAuthenticated == true) return;
+
+        await InvokeAsync(() => Navigation.NavigateTo("/Account/Login", forceLoad: true));
+    }
+
+    public void Dispose()
+        => AuthStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+}

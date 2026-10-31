@@ -11,7 +11,11 @@ public class LogoutModel : PageModel
     public LogoutModel(SignInManager<IdentityUser> signInManager)
         => _signInManager = signInManager;
 
-    public async Task<IActionResult> OnGetAsync()
+    // Signing out takes an antiforgery-checked POST (the nav's Sign out form), so another
+    // site cannot sign users out with a link or an <img src>.
+    public IActionResult OnGet() => LocalRedirect("/");
+
+    public async Task<IActionResult> OnPostAsync()
     {
         await _signInManager.SignOutAsync();
         return RedirectToPage("/Account/Login");

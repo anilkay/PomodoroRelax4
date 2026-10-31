@@ -120,27 +120,57 @@
         _                    => "rgba(248,113,113,0.45)"
     };
 
+    // Remaining time in the tab once a session has started, so it reads from another tab.
+    // Set through JS: HeadOutlet renders statically, so <PageTitle> here would never update.
+    private string? shownTabTitle;
+    private string TabTitle
+    {
+        get
+        {
+            var started = isRunning || (remainingSeconds > 0 && remainingSeconds < totalSeconds);
+            if (!started) return "PomodoroRelax";
+
+            var mode = currentMode switch
+            {
+                TimerMode.ShortBreak => "Short Break",
+                TimerMode.LongBreak  => "Long Break",
+                _                    => "Focus"
+            };
+            return $"{(isRunning ? "" : "⏸ ")}{FormatTime(remainingSeconds)} · {mode} — PomodoroRelax";
+        }
+    }
+
     private double Progress => totalSeconds > 0 ? (double)remainingSeconds / totalSeconds : 1.0;
     private const double Circumference = 804.25;
     private string RingOffset => ((1.0 - Progress) * Circumference).ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender) return;
-
-        var state = await AuthStateProvider.GetAuthenticationStateAsync();
-        userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (userId is not null)
+        if (firstRender)
         {
-            var settings = await SettingsService.GetSettingsAsync(userId);
-            pomodoroDuration   = settings.PomodoroDurationMinutes;
-            shortBreakDuration = settings.ShortBreakDurationMinutes;
-            longBreakDuration  = settings.LongBreakDurationMinutes;
+            var state = await AuthStateProvider.GetAuthenticationStateAsync();
+            userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (userId is not null)
+            {
+                var settings = await SettingsService.GetSettingsAsync(userId);
+                pomodoroDuration   = settings.PomodoroDurationMinutes;
+                shortBreakDuration = settings.ShortBreakDurationMinutes;
+                longBreakDuration  = settings.LongBreakDurationMinutes;
+            }
+
+            SetDurationForMode();
+            StateHasChanged();
+            return;
         }
 
-        SetDurationForMode();
-        StateHasChanged();
+        var title = TabTitle;
+        if (title != shownTabTitle)
+        {
+            shownTabTitle = title;
+            try { await JS.InvokeVoidAsync("pomodoroPage.setTitle", title); }
+            catch (JSDisconnectedException) { } // tab closed mid-session
+        }
     }
 
     private void SetDurationForMode()

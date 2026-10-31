@@ -79,9 +79,9 @@ public class UsersModel : PageModel
         if (user is null)
             return RedirectToPage();
 
-        if (string.IsNullOrEmpty(newPassword) || newPassword.Length < 6)
+        if (string.IsNullOrEmpty(newPassword) || newPassword.Length < PasswordRules.MinLength)
         {
-            ErrorMessage = "The new password must be at least 6 characters.";
+            ErrorMessage = $"The new password must be at least {PasswordRules.MinLength} characters.";
             await LoadUsersAsync();
             return Page();
         }
@@ -166,7 +166,7 @@ public class UsersModel : PageModel
         [Required, EmailAddress]
         public string Email { get; set; } = string.Empty;
 
-        [Required, MinLength(6)]
+        [Required, MinLength(PasswordRules.MinLength)]
         public string Password { get; set; } = string.Empty;
     }
 }

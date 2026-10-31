@@ -27,10 +27,13 @@
                             </a>
                         </AuthorizeView>
                         <div class="w-px h-4 mx-1" style="background:rgba(255,255,255,0.1)"></div>
-                        <a href="/Account/Logout"
-                           class="text-white text-xs px-3 py-1.5 rounded-lg transition hover:bg-white/5" style="opacity:0.3; text-decoration:none">
-                            Sign out
-                        </a>
+                        <form method="post" action="/Account/Logout" class="m-0">
+                            <AntiforgeryToken />
+                            <button type="submit"
+                                    class="text-white text-xs px-3 py-1.5 rounded-lg transition hover:bg-white/5" style="opacity:0.3">
+                                Sign out
+                            </button>
+                        </form>
                     </div>
                 </Authorized>
             </AuthorizeView>

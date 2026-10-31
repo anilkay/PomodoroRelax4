@@ -6,10 +6,9 @@
     <title>@ViewData["Title"] — PomodoroRelax</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } }
-    </script>
+    <script src="/lib/tailwindcss/tailwindcss-play-3.4.17.js"></script>
+    <script src="/js/tailwind.config.js"></script>
+    <script src="/js/site.js" defer></script>
 </head>
 @* Same dark base and faint focus-red glow as the app (MainLayout), so signing in doesn't flash a red page *@
 <body class="min-h-screen font-sans antialiased"

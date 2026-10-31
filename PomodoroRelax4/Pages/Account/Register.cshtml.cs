@@ -92,7 +92,7 @@ public class RegisterModel : PageModel
         [Required, EmailAddress]
         public string Email { get; set; } = string.Empty;
 
-        [Required, MinLength(6)]
+        [Required, MinLength(PasswordRules.MinLength)]
         public string Password { get; set; } = string.Empty;
 
         [Required]

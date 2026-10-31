@@ -1,0 +1,12 @@
+# Weekly update PRs for the SHA-pinned workflow actions and the NuGet packages
+# (including the System.Security.Cryptography.Pkcs security pin in the csproj).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: nuget
+    directory: /PomodoroRelax4
+    schedule:
+      interval: weekly

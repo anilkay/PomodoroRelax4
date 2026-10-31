@@ -97,7 +97,8 @@ Each domain has an interface + implementation in `Services/`:
 All registered as `Scoped` in `Program.cs`.
 
 ### Adding a new page
-1. Create `Components/Pages/MyPage.razor` with `@page "/route"`, `@attribute [Authorize]`, `@rendermode InteractiveServer`.
+1. Create `Components/Pages/MyPage.razor` with `@page "/route"`, `@attribute [Authorize]`, `@rendermode InteractiveServer`, and put `<SignOutGuard />` in it. Without the guard, an open tab of a deleted user, or of one whose password changed, keeps working.
+   - No inline `<script>` or `on…=""` handlers: the Content-Security-Policy in `Program.cs` allows scripts only from `wwwroot`.
 2. Use `@inject AuthenticationStateProvider AuthStateProvider` and the `OnAfterRenderAsync(firstRender)` pattern to load user data.
 3. Add a nav link in `Components/Layout/MainLayout.razor`.
 

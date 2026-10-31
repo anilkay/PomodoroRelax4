@@ -44,11 +44,14 @@ public class LoginModel : PageModel
             return Page();
         }
 
-        var result = await _signInManager.CheckPasswordSignInAsync(user, Input.Password, lockoutOnFailure: false);
+        var result = await _signInManager.PasswordSignInAsync(user, Input.Password, isPersistent: true, lockoutOnFailure: true);
         if (result.Succeeded)
-        {
-            await _signInManager.SignInAsync(user, isPersistent: true);
             return LocalRedirect(returnUrl);
+
+        if (result.IsLockedOut)
+        {
+            ErrorMessage = "Account locked out due to multiple failed attempts. Try again in 15 minutes.";
+            return Page();
         }
 
         ErrorMessage = "Invalid username/email or password.";

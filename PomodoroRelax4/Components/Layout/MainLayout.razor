@@ -20,6 +20,12 @@
                            class="text-white hover:text-white text-xs font-medium px-3 py-1.5 rounded-lg transition hover:bg-white/5" style="opacity:0.5; text-decoration:none">
                             Settings
                         </a>
+                        <AuthorizeView Roles="Admin" Context="adminContext">
+                            <a href="/Admin/Users"
+                               class="text-white hover:text-white text-xs font-medium px-3 py-1.5 rounded-lg transition hover:bg-white/5" style="opacity:0.5; text-decoration:none">
+                                Users
+                            </a>
+                        </AuthorizeView>
                         <div class="w-px h-4 mx-1" style="background:rgba(255,255,255,0.1)"></div>
                         <a href="/Account/Logout"
                            class="text-white text-xs px-3 py-1.5 rounded-lg transition hover:bg-white/5" style="opacity:0.3; text-decoration:none">

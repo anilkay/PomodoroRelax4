@@ -4,8 +4,7 @@
 @inject ISettingsService SettingsService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
-@attribute [Authorize]
-@rendermode InteractiveServer
+@implements IDisposable
 
 <PageTitle>Settings — PomodoroRelax</PageTitle>
 
@@ -92,6 +91,7 @@
     private bool saved;
     private bool saving;
     private string? userId;
+    private readonly CancellationTokenSource _cts = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -120,9 +120,15 @@
         saved = true;
         StateHasChanged();
 
-        // Auto-dismiss after 2.5 s
-        await Task.Delay(2500);
-        saved = false;
-        StateHasChanged();
+        // Auto-dismiss after 2.5 s (cancel silently if user navigates away)
+        try
+        {
+            await Task.Delay(2500, _cts.Token);
+            saved = false;
+            StateHasChanged();
+        }
+        catch (OperationCanceledException) { }
     }
+
+    public void Dispose() => _cts.Cancel();
 }

@@ -21,11 +21,15 @@ No test project exists in this solution.
 
 ### EF Core migrations
 
+`Database:Provider` selects `SqlServer` (default) or `PostgreSql`. Migrations are provider-specific, so every model change needs one migration per provider:
+
 ```powershell
 cd PomodoroRelax4
-dotnet ef migrations add <MigrationName>
-dotnet ef database update
+dotnet ef migrations add <MigrationName> --context ApplicationDbContext
+dotnet ef migrations add <MigrationName> --context PostgresDbContext --output-dir Migrations/PostgreSql --namespace PomodoroRelax4.Migrations.PostgreSql
 ```
+
+`PostgresDbContext` (in `Data/PostgresDbContext.cs`) subclasses `ApplicationDbContext` only to own the PostgreSQL migrations; services keep depending on `IDbContextFactory<ApplicationDbContext>`. Always write `DateTime.UtcNow` — PostgreSQL's `timestamp with time zone` rejects local times.
 
 Migrations are applied automatically on startup (`db.Database.Migrate()` in `Program.cs`).
 

@@ -13,15 +13,18 @@ public class RegisterModel : PageModel
     private readonly UserManager<IdentityUser> _userManager;
     private readonly SignInManager<IdentityUser> _signInManager;
     private readonly ISettingsService _settingsService;
+    private readonly IAdminAccountService _adminAccount;
 
     public RegisterModel(
         UserManager<IdentityUser> userManager,
         SignInManager<IdentityUser> signInManager,
-        ISettingsService settingsService)
+        ISettingsService settingsService,
+        IAdminAccountService adminAccount)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _settingsService = settingsService;
+        _adminAccount = adminAccount;
     }
 
     [BindProperty]
@@ -29,8 +32,12 @@ public class RegisterModel : PageModel
 
     public string? ErrorMessage { get; set; }
 
-    public IActionResult OnGet(string? error = null)
+    // Public sign-up is closed; this page only creates the first admin account.
+    public bool RegistrationOpen { get; set; }
+
+    public async Task<IActionResult> OnGetAsync(string? error = null)
     {
+        RegistrationOpen = await _adminAccount.IsRegistrationOpenAsync();
         if (error == "ratelimit")
             ErrorMessage = "Too many registration attempts. Please try again in an hour.";
         return Page();
@@ -38,8 +45,18 @@ public class RegisterModel : PageModel
 
     public async Task<IActionResult> OnPostAsync()
     {
+        RegistrationOpen = await _adminAccount.IsRegistrationOpenAsync();
+        if (!RegistrationOpen)
+            return Page();
+
         if (!ModelState.IsValid)
             return Page();
+
+        if (!_adminAccount.IsAdminEmail(Input.Email))
+        {
+            ErrorMessage = "Registration is closed. Ask the administrator for an account.";
+            return Page();
+        }
 
         if (Input.Password != Input.ConfirmPassword)
         {
@@ -57,6 +74,8 @@ public class RegisterModel : PageModel
         if (result.Succeeded)
         {
             await _settingsService.EnsureDefaultSettingsAsync(user.Id);
+            // Before sign-in, so the cookie already carries the Admin role.
+            await _adminAccount.SyncAdminRoleAsync();
             await _signInManager.SignInAsync(user, isPersistent: true);
             return LocalRedirect("/");
         }

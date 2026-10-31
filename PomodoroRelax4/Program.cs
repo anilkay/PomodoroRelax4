@@ -8,9 +8,26 @@ using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database — use factory so Blazor Server services each get their own short-lived context
-builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Database — use factory so Blazor Server services each get their own short-lived context.
+// Database:Provider picks SqlServer (default) or PostgreSql; each has its own migrations.
+var dbProvider = builder.Configuration["Database:Provider"] ?? "SqlServer";
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (dbProvider.Equals("PostgreSql", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddDbContextFactory<PostgresDbContext>(options => options.UseNpgsql(connectionString));
+    // Services and Identity ask for ApplicationDbContext; hand them the PostgreSQL subclass
+    builder.Services.AddSingleton<IDbContextFactory<ApplicationDbContext>>(sp =>
+        new DerivedDbContextFactory<PostgresDbContext>(sp.GetRequiredService<IDbContextFactory<PostgresDbContext>>()));
+    builder.Services.AddScoped<ApplicationDbContext>(sp => sp.GetRequiredService<PostgresDbContext>());
+}
+else if (dbProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddDbContextFactory<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
+}
+else
+{
+    throw new InvalidOperationException($"Unknown Database:Provider '{dbProvider}'. Use SqlServer or PostgreSql.");
+}
 
 // Identity
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
@@ -22,6 +39,9 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
     options.Password.RequiredLength = 6;
     options.SignIn.RequireConfirmedAccount = false;
     options.User.RequireUniqueEmail = true;
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+    options.Lockout.AllowedForNewUsers = true;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
@@ -30,11 +50,11 @@ builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/Account/Login";
     options.LogoutPath = "/Account/Logout";
+    options.AccessDeniedPath = "/";
     options.ExpireTimeSpan = TimeSpan.FromDays(30);
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
-    // Only enforce Secure flag when the app is served over HTTPS
-    //options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
 });
 
 // Services
@@ -42,15 +62,15 @@ builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<IStatsService, StatsService>();
+builder.Services.AddScoped<IAdminAccountService, AdminAccountService>();
 
 // Rate limiting — uses X-Forwarded-For when behind a proxy, falls back to RemoteIpAddress
 builder.Services.AddRateLimiter(options =>
 {
     options.AddPolicy("register", context =>
     {
-        var ip = context.Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',')[0].Trim()
-                 ?? context.Connection.RemoteIpAddress?.ToString()
-                 ?? "unknown";
+        // RemoteIpAddress is already updated by UseForwardedHeaders middleware (called first)
+        var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         return RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: ip,
             factory: _ => new FixedWindowRateLimiterOptions
@@ -81,6 +101,9 @@ using (var scope = app.Services.CreateScope())
     var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
     using var db = factory.CreateDbContext();
     db.Database.Migrate();
+
+    // Admin role follows Admin:Email (set it in config, restart to apply)
+    await scope.ServiceProvider.GetRequiredService<IAdminAccountService>().SyncAdminRoleAsync();
 }
 
 if (!app.Environment.IsDevelopment())
@@ -88,12 +111,13 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
-app.UseStaticFiles();
+// ForwardedHeaders must come first so all downstream middleware sees correct IP/scheme
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
+
+app.UseStaticFiles();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

@@ -50,21 +50,26 @@ public class StatsService : IStatsService
         var weekStart = today.AddDays(-(int)today.DayOfWeek);
         var sevenDaysAgo = today.AddDays(-6);
 
-        var pomodoros = await db.PomodoroSessions
-            .Where(s => s.UserId == userId && s.SessionType == TimerMode.Pomodoro && s.CompletedAt.HasValue)
+        // Server-side aggregates — no unbounded memory load
+        var baseQuery = db.PomodoroSessions
+            .Where(s => s.UserId == userId && s.SessionType == TimerMode.Pomodoro && s.CompletedAt.HasValue);
+
+        var todayPomodoros    = await baseQuery.CountAsync(s => s.CompletedAt!.Value >= today);
+        var weekPomodoros     = await baseQuery.CountAsync(s => s.CompletedAt!.Value >= weekStart);
+        var totalPomodoros    = await baseQuery.CountAsync();
+        var totalFocusMinutes = await baseQuery.SumAsync(s => (int?)s.DurationSeconds) / 60 ?? 0;
+
+        // Last 7 days — load only the window needed for the bar chart
+        var last7Raw = await baseQuery
+            .Where(s => s.CompletedAt!.Value >= sevenDaysAgo)
+            .Select(s => new { s.CompletedAt, s.DurationSeconds })
             .ToListAsync();
 
-        var todayPomodoros = pomodoros.Count(s => s.CompletedAt!.Value.Date == today);
-        var weekPomodoros = pomodoros.Count(s => s.CompletedAt!.Value.Date >= weekStart);
-        var totalPomodoros = pomodoros.Count;
-        var totalFocusMinutes = pomodoros.Sum(s => s.DurationSeconds) / 60;
-
-        // Last 7 days breakdown
         var last7Days = new List<DailyStats>();
         for (int i = 6; i >= 0; i--)
         {
             var date = DateOnly.FromDateTime(today.AddDays(-i));
-            var dayPomodoros = pomodoros.Where(s => DateOnly.FromDateTime(s.CompletedAt!.Value) == date).ToList();
+            var dayPomodoros = last7Raw.Where(s => DateOnly.FromDateTime(s.CompletedAt!.Value) == date).ToList();
             last7Days.Add(new DailyStats
             {
                 Date = date,
@@ -75,9 +80,9 @@ public class StatsService : IStatsService
 
         // Task stats
         var tasksCompleted = await db.PomodoroTasks.CountAsync(t => t.UserId == userId && t.IsCompleted);
-        var tasksTotal = await db.PomodoroTasks.CountAsync(t => t.UserId == userId);
+        var tasksTotal     = await db.PomodoroTasks.CountAsync(t => t.UserId == userId);
 
-        // Recent sessions (all modes, last 10) — load separately to avoid EF left-join translation issues
+        // Recent sessions (all modes, last 10)
         var recentRaw = await db.PomodoroSessions
             .Where(s => s.UserId == userId && s.CompletedAt.HasValue)
             .OrderByDescending(s => s.CompletedAt)
@@ -106,14 +111,14 @@ public class StatsService : IStatsService
 
         return new StatsViewModel
         {
-            TodayPomodoros = todayPomodoros,
-            WeekPomodoros = weekPomodoros,
-            TotalPomodoros = totalPomodoros,
+            TodayPomodoros    = todayPomodoros,
+            WeekPomodoros     = weekPomodoros,
+            TotalPomodoros    = totalPomodoros,
             TotalFocusMinutes = totalFocusMinutes,
-            TasksCompleted = tasksCompleted,
-            TasksTotal = tasksTotal,
-            Last7Days = last7Days,
-            RecentSessions = recentSessions
+            TasksCompleted    = tasksCompleted,
+            TasksTotal        = tasksTotal,
+            Last7Days         = last7Days,
+            RecentSessions    = recentSessions
         };
     }
 }

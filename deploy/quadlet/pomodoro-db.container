@@ -1,19 +1,18 @@
 [Unit]
-Description=PomodoroRelax4 SQL Server
+Description=PomodoroRelax4 PostgreSQL
 
 [Container]
 ContainerName=pomodoro-db
-# x86-64 only; SQL Server needs about 2 GB of RAM.
-Image=mcr.microsoft.com/mssql/server:2022-latest
+Image=docker.io/library/postgres:18.6
 Network=pomodoro.network
-Volume=pomodoro-db.volume:/var/opt/mssql
+Volume=pomodoro-db.volume:/var/lib/postgresql
 EnvironmentFile=%E/pomodoro/pomodoro.env
-# SQL Server opens 1433 once master is recovered and logins are accepted. bash,
-# because the default /bin/sh (dash) has no /dev/tcp.
-HealthCmd=bash -c "</dev/tcp/127.0.0.1/1433"
+# TCP on purpose: during first-time init the image runs a temporary server on
+# the Unix socket only, which must not count as ready.
+HealthCmd=pg_isready -h 127.0.0.1 -p 5432
 HealthInterval=10s
 HealthStartPeriod=30s
-HealthRetries=10
+HealthRetries=5
 # Report "started" to systemd only once the health check passes, so the app
 # does not run its startup migrations against a database that is still starting.
 Notify=healthy

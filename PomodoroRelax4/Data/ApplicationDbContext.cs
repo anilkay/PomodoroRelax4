@@ -10,6 +10,10 @@ public class ApplicationDbContext : IdentityDbContext<IdentityUser>
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options) { }
 
+    // For provider-specific subclasses (PostgresDbContext) that carry their own migrations
+    protected ApplicationDbContext(DbContextOptions options)
+        : base(options) { }
+
     public DbSet<PomodoroTask> PomodoroTasks => Set<PomodoroTask>();
     public DbSet<PomodoroSession> PomodoroSessions => Set<PomodoroSession>();
     public DbSet<UserSettings> UserSettings => Set<UserSettings>();

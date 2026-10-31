@@ -1,6 +1,7 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
 @inject ITaskService TaskService
+@inject AuthenticationStateProvider AuthStateProvider
 @rendermode InteractiveServer
 
 <div class="mt-8">
@@ -125,9 +126,6 @@
 </div>
 
 @code {
-    [CascadingParameter]
-    private Task<AuthenticationState>? AuthState { get; set; }
-
     [Parameter]
     public int? SelectedTaskId { get; set; }
 
@@ -136,6 +134,7 @@
 
     private List<PomodoroTask> tasks = new();
     private string? userId;
+    private bool _loaded;
 
     private bool isAdding;
     private string newTitle = "";
@@ -145,15 +144,17 @@
     private string editTitle = "";
     private ElementReference editInput;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (AuthState is not null)
-        {
-            var state = await AuthState;
-            userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (userId is not null)
-                tasks = await TaskService.GetTasksAsync(userId);
-        }
+        if (!firstRender || _loaded) return;
+        _loaded = true;
+
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is not null)
+            tasks = await TaskService.GetTasksAsync(userId);
+
+        StateHasChanged();
     }
 
     public async Task RefreshTasks()
@@ -184,9 +185,9 @@
         isAdding = false;
     }
 
-    private void HandleAddKeyDown(KeyboardEventArgs e)
+    private async Task HandleAddKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter") _ = AddTask();
+        if (e.Key == "Enter") await AddTask();
         if (e.Key == "Escape") CancelAdd();
     }
 

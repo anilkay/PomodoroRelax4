@@ -40,6 +40,15 @@ Public sign-up is closed. `Admin:Email` (env `Admin__Email`) names the administr
 
 Users change their own password from **Settings → Change password** (`/Account/ChangePassword`). Under **Manage** on each user, the admin can set a new password (which also clears a lockout from failed sign-ins) or delete the user together with their tasks, sessions and settings. The admin account itself is managed through `Admin:Email`, not from this page. A changed, reset or deleted account's other browsers and open tabs are signed out at the next security-stamp check, within 5 minutes.
 
+## Export
+
+**Settings → Export your data** downloads the signed-in user's account name and e-mail, settings, tasks and sessions. Times are in UTC.
+
+- `GET /export/xlsx` is an Excel workbook with Tasks, Sessions and Settings sheets, built with ClosedXML. Every value is written as plain data, so a task title that starts with `=` stays text and never becomes a formula.
+- `GET /export/json` holds the same data as JSON.
+
+Both endpoints require sign-in and only ever return the caller's own data.
+
 ## Security
 
 - Passwords need at least 12 characters (`Services/PasswordRules.cs`).

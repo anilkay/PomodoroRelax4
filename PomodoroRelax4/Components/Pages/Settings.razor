@@ -87,6 +87,17 @@
                     @(saving ? "Saving…" : "Save")
                 </button>
             </div>
+
+            <div class="mt-6 pt-4 border-t border-white/10">
+                <h3 class="text-white font-semibold text-sm mb-1">Export your data</h3>
+                <p class="text-white/40 text-xs mb-3">Tasks, sessions and settings. Times are in UTC.</p>
+                <div class="flex gap-3">
+                    <a href="/export/xlsx" download
+                       class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm rounded transition">Excel (.xlsx)</a>
+                    <a href="/export/json" download
+                       class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm rounded transition">JSON</a>
+                </div>
+            </div>
         }
     </div>
 </div>

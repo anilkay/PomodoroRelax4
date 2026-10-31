@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using PomodoroRelax4.Data;
 using PomodoroRelax4.Services;
+using System.Security.Claims;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -84,6 +85,7 @@ builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<IStatsService, StatsService>();
 builder.Services.AddScoped<IAdminAccountService, AdminAccountService>();
+builder.Services.AddScoped<IExportService, ExportService>();
 
 // GET /healthz — for uptime monitors; checks the database connection
 builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database");
@@ -179,6 +181,15 @@ app.UseAntiforgery();
 app.MapRazorPages();
 app.MapHealthChecks("/healthz");
 
+// Settings → Export: the signed-in user's own data. Plain GET downloads are fine here: another
+// site can make the browser fetch them but cannot read the response.
+var export = app.MapGroup("/export").RequireAuthorization();
+export.MapGet("/json", (HttpContext context, IExportService exporter) =>
+    ExportAsync(context, exporter, "json", "application/json", exporter.ToJson));
+export.MapGet("/xlsx", (HttpContext context, IExportService exporter) =>
+    ExportAsync(context, exporter, "xlsx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", exporter.ToExcel));
+
 app.MapRazorComponents<PomodoroRelax4.Components.App>()
     .AddInteractiveServerRenderMode();
 
@@ -186,6 +197,18 @@ app.Run();
 
 public partial class Program
 {
+    private static async Task<IResult> ExportAsync(HttpContext context, IExportService exporter,
+        string extension, string contentType, Func<UserDataExport, byte[]> write)
+    {
+        var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var data = userId is null ? null : await exporter.GetUserDataAsync(userId);
+        if (data is null)
+            return Results.Unauthorized();
+
+        var fileName = $"pomodororelax-{data.Account.UserName}-{DateTime.UtcNow:yyyyMMdd}.{extension}";
+        return Results.File(write(data), contentType, fileName);
+    }
+
     // Scripts only from this app (no inline script, no CDN). Styles allow 'unsafe-inline' because
     // the Tailwind Play script injects a <style> element and components use style attributes.
     // connect-src 'self' covers Blazor's WebSocket to the same host.

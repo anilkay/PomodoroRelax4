@@ -33,7 +33,8 @@ public class RecentSession
 
 public interface IStatsService
 {
-    Task<StatsViewModel> GetStatsAsync(string userId);
+    /// <param name="utcOffset">The viewer's offset from UTC; days and weeks start at their local midnight.</param>
+    Task<StatsViewModel> GetStatsAsync(string userId, TimeSpan utcOffset);
 }
 
 public class StatsService : IStatsService
@@ -42,12 +43,15 @@ public class StatsService : IStatsService
 
     public StatsService(IDbContextFactory<ApplicationDbContext> factory) => _factory = factory;
 
-    public async Task<StatsViewModel> GetStatsAsync(string userId)
+    public async Task<StatsViewModel> GetStatsAsync(string userId, TimeSpan utcOffset)
     {
         await using var db = await _factory.CreateDbContextAsync();
 
-        var today = DateTime.UtcNow.Date;
-        var weekStart = today.AddDays(-(int)today.DayOfWeek);
+        // Sessions are stored in UTC; work out where the viewer's local day and week begin.
+        // Kind must stay Utc for PostgreSQL's timestamptz parameters.
+        var localToday = (DateTime.UtcNow + utcOffset).Date;
+        var today = DateTime.SpecifyKind(localToday - utcOffset, DateTimeKind.Utc);
+        var weekStart = today.AddDays(-(((int)localToday.DayOfWeek + 6) % 7)); // weeks start on Monday
         var sevenDaysAgo = today.AddDays(-6);
 
         // Server-side aggregates — no unbounded memory load
@@ -68,8 +72,8 @@ public class StatsService : IStatsService
         var last7Days = new List<DailyStats>();
         for (int i = 6; i >= 0; i--)
         {
-            var date = DateOnly.FromDateTime(today.AddDays(-i));
-            var dayPomodoros = last7Raw.Where(s => DateOnly.FromDateTime(s.CompletedAt!.Value) == date).ToList();
+            var date = DateOnly.FromDateTime(localToday.AddDays(-i));
+            var dayPomodoros = last7Raw.Where(s => DateOnly.FromDateTime(s.CompletedAt!.Value + utcOffset) == date).ToList();
             last7Days.Add(new DailyStats
             {
                 Date = date,
@@ -105,7 +109,7 @@ public class StatsService : IStatsService
         {
             SessionType = s.SessionType,
             DurationMinutes = s.DurationSeconds / 60,
-            CompletedAt = s.CompletedAt!.Value,
+            CompletedAt = s.CompletedAt!.Value + utcOffset, // viewer's local time
             TaskTitle = s.TaskId.HasValue && taskTitleMap.TryGetValue(s.TaskId.Value, out var title) ? title : null
         }).ToList();
 

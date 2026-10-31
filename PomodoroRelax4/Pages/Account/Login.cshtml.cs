@@ -29,7 +29,9 @@ public class LoginModel : PageModel
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
-        returnUrl = returnUrl ?? "/";
+        // LocalRedirect throws on anything else; an off-site returnUrl just goes home
+        if (string.IsNullOrEmpty(returnUrl) || !Url.IsLocalUrl(returnUrl))
+            returnUrl = "/";
 
         if (!ModelState.IsValid)
             return Page();

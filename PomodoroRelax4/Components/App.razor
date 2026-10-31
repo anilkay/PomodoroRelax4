@@ -36,5 +36,9 @@
     <Routes />
     <script src="_framework/blazor.server.js"></script>
     <script src="js/sound.js"></script>
+    <script>
+        // Minutes ahead of UTC (Istanbul: 180); Stats uses it for "today" and the 7-day chart
+        window.pomodoroTime = { utcOffsetMinutes: () => -new Date().getTimezoneOffset() };
+    </script>
 </body>
 </html>

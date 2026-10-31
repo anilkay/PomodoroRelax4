@@ -43,7 +43,15 @@ public class TaskService : ITaskService
     public async Task UpdateTaskAsync(PomodoroTask task)
     {
         await using var db = await _factory.CreateDbContextAsync();
-        db.PomodoroTasks.Update(task);
+        var stored = await db.PomodoroTasks
+            .FirstOrDefaultAsync(t => t.Id == task.Id && t.UserId == task.UserId);
+        if (stored is null) return;
+
+        // Copy only what the UI edits: the caller's copy may hold a stale pomodoro count
+        // or sort order (another tab, a timer that just finished).
+        stored.Title = task.Title;
+        stored.IsCompleted = task.IsCompleted;
+        stored.EstimatedPomodoros = task.EstimatedPomodoros;
         await db.SaveChangesAsync();
     }
 

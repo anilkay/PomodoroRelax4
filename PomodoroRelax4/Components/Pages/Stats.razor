@@ -4,6 +4,7 @@
 @using System.Security.Claims
 @inject IStatsService StatsService
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
 
 <PageTitle>Stats — PomodoroRelax</PageTitle>
 
@@ -64,7 +65,7 @@ else
             @foreach (var day in vm.Last7Days)
             {
                 var barPct = (int)((double)day.Pomodoros / maxPomodoros * 100);
-                var isToday = day.Date == DateOnly.FromDateTime(DateTime.UtcNow);
+                var isToday = day == vm.Last7Days[^1];
                 <div class="flex items-center gap-3">
                     <span class="text-white/60 text-xs w-8 shrink-0">@day.Date.ToString("ddd")</span>
                     <div class="flex-1 bg-white/10 rounded h-6 relative overflow-hidden">
@@ -96,7 +97,7 @@ else
                             }
                         </div>
                         <div class="text-white/50 text-xs whitespace-nowrap">
-                            @s.DurationMinutes min · @s.CompletedAt.ToLocalTime().ToString("MMM d HH:mm")
+                            @s.DurationMinutes min · @s.CompletedAt.ToString("MMM d HH:mm")
                         </div>
                     </div>
                 }
@@ -122,7 +123,10 @@ else
             var state = await AuthStateProvider.GetAuthenticationStateAsync();
             var userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (userId is not null)
-                vm = await StatsService.GetStatsAsync(userId);
+            {
+                var offsetMinutes = await JS.InvokeAsync<int>("pomodoroTime.utcOffsetMinutes");
+                vm = await StatsService.GetStatsAsync(userId, TimeSpan.FromMinutes(offsetMinutes));
+            }
         }
         catch (Exception ex)
         {

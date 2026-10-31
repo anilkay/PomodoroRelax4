@@ -72,6 +72,11 @@ builder.Services.AddRateLimiter(options =>
 {
     options.AddPolicy("register", context =>
     {
+        // Count only form posts: limiting GET as well would reject the ?error=ratelimit page
+        // that OnRejected redirects to, looping the browser until it gives up.
+        if (!HttpMethods.IsPost(context.Request.Method))
+            return RateLimitPartition.GetNoLimiter("get");
+
         // RemoteIpAddress is already updated by UseForwardedHeaders middleware (called first)
         var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         return RateLimitPartition.GetFixedWindowLimiter(

@@ -4,12 +4,22 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] — PomodoroRelax</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } }
+    </script>
 </head>
-<body class="min-h-screen" style="background-color:#df5454;">
+@* Same dark base and faint focus-red glow as the app (MainLayout), so signing in doesn't flash a red page *@
+<body class="min-h-screen font-sans antialiased"
+      style="background: radial-gradient(ellipse at 50% -20%, rgba(248,113,113,0.10) 0%, #0c0c18 65%) #0c0c18 fixed;">
     <header class="max-w-xl mx-auto pt-4 px-4">
-        <nav class="flex items-center justify-between border-b border-white/20 pb-3 mb-6">
-            <h1 class="text-xl font-bold text-white tracking-wide">🍅 PomodoroRelax</h1>
+        <nav class="flex items-center justify-between border-b border-white/10 pb-3 mb-6">
+            <a href="/" class="flex items-center gap-2 text-white font-semibold tracking-tight hover:opacity-80 transition">
+                <span style="color:#f87171; font-size:1.1rem">&#9679;</span>
+                <span>PomodoroRelax</span>
+            </a>
         </nav>
     </header>
     <main class="max-w-xl mx-auto px-4">

@@ -9,8 +9,12 @@ COPY PomodoroRelax4/PomodoroRelax4.csproj PomodoroRelax4/
 RUN dotnet restore PomodoroRelax4/PomodoroRelax4.csproj
 
 # Tailwind comes from the CDN in App.razor, so no Node step is needed here.
+# Restore again with the sources present (no --no-restore): the SDK only pulls in
+# the Blazor framework scripts (_framework/blazor.server.js) when it sees .razor
+# files, so a csproj-only restore ships an image whose pages never go interactive.
 COPY PomodoroRelax4/ PomodoroRelax4/
-RUN dotnet publish PomodoroRelax4/PomodoroRelax4.csproj -c Release -o /app --no-restore
+RUN dotnet publish PomodoroRelax4/PomodoroRelax4.csproj -c Release -o /app \
+ && test -f /app/wwwroot/_framework/blazor.server.js
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app

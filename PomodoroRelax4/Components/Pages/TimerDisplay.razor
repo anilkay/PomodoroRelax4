@@ -5,6 +5,7 @@
 @inject ITaskService TaskService
 @inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthStateProvider
+@inject ILogger<TimerDisplay> Logger
 @implements IDisposable
 @rendermode InteractiveServer
 
@@ -98,6 +99,7 @@
     private int remainingSeconds;
     private bool isRunning;
     private System.Timers.Timer? ticker;
+    private DateTime endsAtUtc;
     private string? userId;
 
     private int pomodoroDuration    = 25;
@@ -165,27 +167,53 @@
     {
         StopTicker();
         isRunning = true;
-        ticker = new System.Timers.Timer(1000);
-        ticker.Elapsed += async (_, _) =>
-        {
-            if (remainingSeconds > 0)
-            {
-                remainingSeconds--;
-                await InvokeAsync(StateHasChanged);
-            }
-            else
-            {
-                StopTicker();
-                isRunning = false;
-                SetDurationForMode(); // reset to full duration so Start works again
-                await OnTimerCompleted();
-                await InvokeAsync(StateHasChanged);
-            }
-        };
+        // Count down against the clock, not by counting ticks, so a busy server doesn't stretch the timer
+        endsAtUtc = DateTime.UtcNow.AddSeconds(remainingSeconds);
+        ticker = new System.Timers.Timer(250);
+        // Elapsed fires on a thread-pool thread; component state and rendering must run on the
+        // dispatcher, otherwise the completion callbacks throw and take down the whole process.
+        ticker.Elapsed += (_, _) => _ = InvokeAsync(TickAsync);
         ticker.Start();
     }
 
-    private void Pause() { StopTicker(); isRunning = false; }
+    private async Task TickAsync()
+    {
+        if (!isRunning) return; // a tick queued just before Pause/Reset/SwitchMode
+
+        var left = SecondsLeft();
+        if (left > 0)
+        {
+            if (left != remainingSeconds)
+            {
+                remainingSeconds = left;
+                StateHasChanged();
+            }
+            return;
+        }
+
+        StopTicker();
+        isRunning = false;
+        remainingSeconds = 0;
+        try
+        {
+            await OnTimerCompleted();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Recording the completed {Mode} session failed", currentMode);
+        }
+        SetDurationForMode(); // reset to full duration so Start works again
+        StateHasChanged();
+    }
+
+    private int SecondsLeft() => Math.Max(0, (int)Math.Ceiling((endsAtUtc - DateTime.UtcNow).TotalSeconds));
+
+    private void Pause()
+    {
+        if (isRunning) remainingSeconds = SecondsLeft();
+        StopTicker();
+        isRunning = false;
+    }
 
     private async Task Reset()
     {

@@ -4,13 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] — PomodoroRelax</title>
-    <script src="/js/theme.js"></script>
+    @* asp-append-version adds ?v=<content hash> so browsers pick up changed files after a deploy *@
+    <script src="/js/theme.js" asp-append-version="true"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/css/app.css" />
-    <script src="/lib/tailwindcss/tailwindcss-play-3.4.17.js"></script>
-    <script src="/js/tailwind.config.js"></script>
-    <script src="/js/site.js" defer></script>
+    <link rel="stylesheet" href="/css/app.css" asp-append-version="true" />
+    <script src="/lib/tailwindcss/tailwindcss-play-3.4.17.js" asp-append-version="true"></script>
+    <script src="/js/tailwind.config.js" asp-append-version="true"></script>
+    <script src="/js/site.js" defer asp-append-version="true"></script>
 </head>
 @* Same base colour and faint focus-red glow as the app (MainLayout), in either theme *@
 <body class="min-h-screen font-sans antialiased"

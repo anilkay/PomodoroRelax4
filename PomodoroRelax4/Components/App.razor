@@ -1,3 +1,5 @@
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
+@inject IFileVersionProvider FileVersions
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,18 +7,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PomodoroRelax</title>
     <base href="/" />
-    <script src="js/theme.js"></script>
+    <script src="@V("/js/theme.js")"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet" />
-    <script src="lib/tailwindcss/tailwindcss-play-3.4.17.js"></script>
-    <script src="js/tailwind.config.js"></script>
-    <link rel="stylesheet" href="css/app.css" />
+    <script src="@V("/lib/tailwindcss/tailwindcss-play-3.4.17.js")"></script>
+    <script src="@V("/js/tailwind.config.js")"></script>
+    <link rel="stylesheet" href="@V("/css/app.css")" />
     <HeadOutlet />
 </head>
 <body>
     <Routes />
     <script src="_framework/blazor.server.js"></script>
-    <script src="js/sound.js"></script>
-    <script src="js/site.js"></script>
+    <script src="@V("/js/sound.js")"></script>
+    <script src="@V("/js/site.js")"></script>
 </body>
 </html>
+
+@code {
+    // Adds ?v=<content hash>, like asp-append-version in the Razor Pages layout, so a deploy
+    // that changes a file changes its URL and browsers can't keep using a cached old copy
+    private string V(string path) => FileVersions.AddFileVersionToPath(PathString.Empty, path);
+}

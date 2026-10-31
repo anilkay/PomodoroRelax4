@@ -87,6 +87,7 @@ await using var db = await _factory.CreateDbContextAsync();
   - `rgb(var(--fg) / 0.4)` and `rgb(var(--bg))` in inline styles. SVG presentation attributes don't resolve `var()`, so use `style="stroke: …"`.
   - `text-app-base` (fixed dark ink) for text on accent-coloured fills.
 - **Glass-morphism cards**: use the `.glass` CSS class, theme-aware.
+- **Static file URLs carry a content hash.** That is `asp-append-version="true"` in `_AuthLayout.cshtml` and `@V("/path")` in `App.razor`. Hashed URLs are cached for a year and others revalidate (see `UseStaticFiles` in `Program.cs`), so add new `wwwroot` CSS/JS references the same way or browsers may keep an old copy after a deploy.
 - **Timer digits**: use class `timer-digits` (JetBrains Mono, tabular-nums).
 - All color accents are computed from `TimerMode` with a C# switch expression. Never hardcode mode colors — add a new arm to the existing switches in `TimerDisplay.razor` and `MainLayout.razor`.
 

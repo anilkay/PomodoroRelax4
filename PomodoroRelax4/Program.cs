@@ -173,7 +173,18 @@ app.Use(async (context, next) =>
     await next();
 });
 
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    // The layouts add ?v=<content hash> (asp-append-version / IFileVersionProvider), so those URLs
+    // change whenever the file does and can be cached for good. Anything requested without it
+    // (blazor.server.js, the sound) is revalidated each time, so a deploy is never hidden by cache.
+    OnPrepareResponse = context =>
+    {
+        context.Context.Response.Headers.CacheControl = context.Context.Request.Query.ContainsKey("v")
+            ? "public, max-age=31536000, immutable"
+            : "no-cache";
+    }
+});
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

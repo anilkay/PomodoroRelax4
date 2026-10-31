@@ -1,0 +1,5 @@
+[Unit]
+Description=PomodoroRelax4 network
+
+[Network]
+NetworkName=pomodoro

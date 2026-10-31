@@ -1,0 +1,26 @@
+[Unit]
+Description=PomodoroRelax4 SQL Server
+
+[Container]
+ContainerName=pomodoro-db
+# x86-64 only; SQL Server needs about 2 GB of RAM.
+Image=mcr.microsoft.com/mssql/server:2022-latest
+Network=pomodoro.network
+Volume=pomodoro-db.volume:/var/opt/mssql
+EnvironmentFile=%E/pomodoro/pomodoro.env
+# SQL Server opens 1433 once master is recovered and logins are accepted. bash,
+# because the default /bin/sh (dash) has no /dev/tcp.
+HealthCmd=bash -c "</dev/tcp/127.0.0.1/1433"
+HealthInterval=10s
+HealthStartPeriod=30s
+HealthRetries=10
+# Report "started" to systemd only once the health check passes, so the app
+# does not run its startup migrations against a database that is still starting.
+Notify=healthy
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target

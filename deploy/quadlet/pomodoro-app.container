@@ -1,0 +1,24 @@
+[Unit]
+Description=PomodoroRelax4
+Requires=pomodoro-db.service
+After=pomodoro-db.service
+
+[Container]
+ContainerName=pomodoro-app
+Image=ghcr.io/anilkay/pomodororelax4:latest
+# Built by .github/workflows/container.yml; "podman auto-update" pulls new pushes.
+AutoUpdate=registry
+Network=pomodoro.network
+EnvironmentFile=%E/pomodoro/pomodoro.env
+Volume=pomodoro-keys.volume:/home/app/.aspnet/DataProtection-Keys
+# Only the local reverse proxy should reach the app; it terminates TLS.
+# 8082 so it can sit next to other apps on 8080/8081.
+PublishPort=127.0.0.1:8082:8080
+
+[Service]
+# Also covers a failed startup migration while SQL Server is still busy.
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target

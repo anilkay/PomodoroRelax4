@@ -1,0 +1,23 @@
+[Unit]
+Description=PomodoroRelax4 Cloudflare Tunnel
+# Outbound-only connection to Cloudflare; no inbound port is opened on the host.
+Wants=pomodoro-app.service
+After=pomodoro-app.service network-online.target
+
+[Container]
+ContainerName=pomodoro-tunnel
+# Pinned release; bump the tag for a newer cloudflared.
+Image=docker.io/cloudflare/cloudflared:2026.10.1
+AutoUpdate=registry
+Network=pomodoro.network
+# TUNNEL_TOKEN from the Cloudflare dashboard; kept apart from pomodoro.env so the
+# tunnel never sees database secrets (and the app never sees the token).
+EnvironmentFile=%E/pomodoro/tunnel.env
+# In the dashboard, point the public hostname at http://pomodoro-app:8080.
+Exec=tunnel --no-autoupdate run
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

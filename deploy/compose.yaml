@@ -1,0 +1,58 @@
+# Same stack as deploy/quadlet, for `podman compose` (or docker compose).
+#   cp deploy/pomodoro.env.example deploy/pomodoro.env   # then edit it
+#   podman compose -f deploy/compose.yaml up -d --build
+# Quadlet is the recommended way to run it permanently on a server; see README.
+
+name: pomodoro
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: pomodoro-db
+    env_file: pomodoro.env
+    volumes:
+      - pomodoro-db:/var/opt/mssql
+    networks:
+      default:
+        # Matches Server=pomodoro-db in the connection string, as with Quadlet.
+        aliases: [pomodoro-db]
+    healthcheck:
+      # SQL Server opens 1433 once master is recovered and logins are accepted.
+      test: ["CMD", "bash", "-c", "</dev/tcp/127.0.0.1/1433"]
+      interval: 10s
+      start_period: 30s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    image: localhost/pomodororelax4:latest
+    build:
+      context: ..
+      dockerfile: Containerfile
+    container_name: pomodoro-app
+    env_file: pomodoro.env
+    volumes:
+      - pomodoro-keys:/home/app/.aspnet/DataProtection-Keys
+    ports:
+      # Only the local reverse proxy should reach the app; it terminates TLS.
+      - "127.0.0.1:8082:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Optional Cloudflare Tunnel: `podman compose -f deploy/compose.yaml --profile tunnel up -d`
+  # with TUNNEL_TOKEN in deploy/tunnel.env. Public hostname service: http://pomodoro-app:8080.
+  tunnel:
+    image: docker.io/cloudflare/cloudflared:2026.10.1
+    container_name: pomodoro-tunnel
+    profiles: [tunnel]
+    env_file: tunnel.env
+    command: ["tunnel", "--no-autoupdate", "run"]
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  pomodoro-db:
+  pomodoro-keys:

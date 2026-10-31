@@ -49,6 +49,17 @@ Users change their own password from **Settings → Change password** (`/Account
 
 Both endpoints require sign-in and only ever return the caller's own data.
 
+### Import
+
+**Settings → Import a file…** (`/Data/Import`) reads either export back, into the signed-in account. The account name and e-mail in the file are ignored.
+
+- It merges and never deletes. A task that already exists (same title and creation time, to the second) is skipped. So is a session with the same type, length and start time. Importing the same file twice, or the Excel and the JSON of one export, adds nothing the second time.
+- Timer settings are replaced by the file's, clamped to the Settings page limits.
+- Sessions link to their task through the `Id` / `Task id` columns, or the JSON ids. In an Excel file without those columns they fall back to matching the task title.
+- Unusable rows are counted and left out: no title, zero length, or dates before 2000 or in the future.
+- Files are limited to 5 MB, 10,000 tasks and 200,000 sessions. An `.xlsx` that would unpack to more than 50 MB is refused before it is opened.
+- Everything is written in one transaction. The Excel column headers are what the import reads, so rename them in `ExportService` and `ImportService` together.
+
 ## Security
 
 - Passwords need at least 12 characters (`Services/PasswordRules.cs`).

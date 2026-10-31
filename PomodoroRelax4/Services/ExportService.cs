@@ -38,7 +38,8 @@ public interface IExportService
 
 public class ExportService : IExportService
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    // Shared with ImportService so a JSON export reads back with the same names
+    internal static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -99,35 +100,40 @@ public class ExportService : IExportService
         using var workbook = new XLWorkbook();
 
         // SetValue with a string always stores text, so a title like "=HYPERLINK(...)" is never run as a formula
+        // Header names are what ImportService reads back; rename them in both places.
+        // "Id" / "Task id" link sessions to their task when the file is imported again.
         var tasks = workbook.AddWorksheet("Tasks");
-        WriteHeader(tasks, "Order", "Title", "Estimated", "Completed pomodoros", "Done", "Created (UTC)");
+        WriteHeader(tasks, "Id", "Order", "Title", "Estimated", "Completed pomodoros", "Done", "Created (UTC)");
         var row = 2;
         foreach (var t in data.Tasks)
         {
-            tasks.Cell(row, 1).SetValue(t.SortOrder);
-            tasks.Cell(row, 2).SetValue(t.Title);
-            tasks.Cell(row, 3).SetValue(t.EstimatedPomodoros);
-            tasks.Cell(row, 4).SetValue(t.CompletedPomodoros);
-            tasks.Cell(row, 5).SetValue(t.IsCompleted ? "Yes" : "No");
-            tasks.Cell(row, 6).SetValue(t.CreatedAtUtc);
+            tasks.Cell(row, 1).SetValue(t.Id);
+            tasks.Cell(row, 2).SetValue(t.SortOrder);
+            tasks.Cell(row, 3).SetValue(t.Title);
+            tasks.Cell(row, 4).SetValue(t.EstimatedPomodoros);
+            tasks.Cell(row, 5).SetValue(t.CompletedPomodoros);
+            tasks.Cell(row, 6).SetValue(t.IsCompleted ? "Yes" : "No");
+            tasks.Cell(row, 7).SetValue(t.CreatedAtUtc);
             row++;
         }
-        tasks.Column(6).Style.DateFormat.Format = "yyyy-mm-dd hh:mm";
+        tasks.Column(7).Style.DateFormat.Format = "yyyy-mm-dd hh:mm:ss";
 
         var sessions = workbook.AddWorksheet("Sessions");
-        WriteHeader(sessions, "Type", "Minutes", "Started (UTC)", "Completed (UTC)", "Task");
+        WriteHeader(sessions, "Type", "Minutes", "Started (UTC)", "Completed (UTC)", "Task", "Task id");
         row = 2;
         foreach (var s in data.Sessions)
         {
             sessions.Cell(row, 1).SetValue(s.Type.ToString());
-            sessions.Cell(row, 2).SetValue(Math.Round(s.DurationSeconds / 60.0, 1));
+            sessions.Cell(row, 2).SetValue(Math.Round(s.DurationSeconds / 60.0, 2));
             sessions.Cell(row, 3).SetValue(s.StartedAtUtc);
             if (s.CompletedAtUtc is DateTime completed)
                 sessions.Cell(row, 4).SetValue(completed);
             sessions.Cell(row, 5).SetValue(s.TaskTitle ?? "");
+            if (s.TaskId is int taskId)
+                sessions.Cell(row, 6).SetValue(taskId);
             row++;
         }
-        sessions.Columns(3, 4).Style.DateFormat.Format = "yyyy-mm-dd hh:mm";
+        sessions.Columns(3, 4).Style.DateFormat.Format = "yyyy-mm-dd hh:mm:ss";
 
         var settings = workbook.AddWorksheet("Settings");
         WriteHeader(settings, "Setting", "Value");

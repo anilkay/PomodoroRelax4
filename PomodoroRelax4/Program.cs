@@ -86,6 +86,7 @@ builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<IStatsService, StatsService>();
 builder.Services.AddScoped<IAdminAccountService, AdminAccountService>();
 builder.Services.AddScoped<IExportService, ExportService>();
+builder.Services.AddScoped<IImportService, ImportService>();
 
 // GET /healthz — for uptime monitors; checks the database connection
 builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database");

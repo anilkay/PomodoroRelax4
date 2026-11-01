@@ -152,8 +152,6 @@
     [Parameter]
     public EventCallback<(int? Id, string? Title)> OnTaskSelected { get; set; }
 
-    private const string HideDonePref = "tasks.hideDone";
-
     private List<PomodoroTask> tasks = new();
     private string? userId;
     private bool _loaded;
@@ -180,25 +178,53 @@
         public string? Notes { get; set; }
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender || _loaded) return;
-        _loaded = true;
+    // Only set while prerendering (statically, before the circuit exists)
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
 
+    // Loaded during prerender and carried into the circuit: the first HTML already lists the
+    // tasks, and the circuit starts from the same data instead of querying again
+    [PersistentState]
+    public List<PomodoroTask>? PrerenderedTasks { get; set; }
+
+    [PersistentState]
+    public int? UtcOffsetMinutes { get; set; }
+
+    [PersistentState]
+    public bool HideDone { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
         var state = await AuthStateProvider.GetAuthenticationStateAsync();
         userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is not null)
-            tasks = await TaskService.GetTasksAsync(userId);
+        if (userId is null) return;
+
+        if (HttpContext is not null)
+        {
+            UtcOffsetMinutes = ClientPreferences.UtcOffsetMinutes(HttpContext);
+            HideDone = ClientPreferences.HideDoneTasks(HttpContext);
+        }
+        PrerenderedTasks ??= await TaskService.GetTasksAsync(userId);
+
+        tasks = PrerenderedTasks;
+        hideDone = HideDone;
+        if (UtcOffsetMinutes is int offset)
+            today = DateOnly.FromDateTime(DateTime.UtcNow.AddMinutes(offset));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // No tz cookie yet (first visit): ask the browser once the circuit is up
+        if (!firstRender || _loaded || UtcOffsetMinutes is not null) return;
+        _loaded = true;
 
         try
         {
             var offsetMinutes = await JS.InvokeAsync<int>("pomodoroTime.utcOffsetMinutes");
             today = DateOnly.FromDateTime(DateTime.UtcNow.AddMinutes(offsetMinutes));
-            hideDone = await JS.InvokeAsync<string?>("pomodoroPrefs.get", HideDonePref) == "1";
+            StateHasChanged();
         }
-        catch (JSException) { /* keep the defaults */ }
-
-        StateHasChanged();
+        catch (JSException) { /* keep UTC */ }
     }
 
     public async Task RefreshTasks()
@@ -382,7 +408,7 @@
     private async Task ToggleHideDone()
     {
         hideDone = !hideDone;
-        try { await JS.InvokeVoidAsync("pomodoroPrefs.set", HideDonePref, hideDone ? "1" : "0"); }
+        try { await JS.InvokeVoidAsync("pomodoroPrefs.set", ClientPreferences.HideDoneTasksCookie, hideDone ? "1" : "0"); }
         catch (JSException) { /* only lasts this page */ }
     }
 

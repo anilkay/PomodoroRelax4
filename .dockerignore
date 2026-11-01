@@ -6,3 +6,4 @@ deploy
 **/obj
 **/*.user
 **/appsettings.Development.json
+.tools

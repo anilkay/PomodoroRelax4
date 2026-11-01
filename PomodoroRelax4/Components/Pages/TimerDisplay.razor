@@ -144,26 +144,30 @@
     private const double Circumference = 804.25;
     private string RingOffset => ((1.0 - Progress) * Circumference).ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    // Loaded while the page is prerendered and carried into the interactive circuit, so the
+    // first HTML already shows the user's durations and the circuit doesn't query them again
+    [PersistentState]
+    public UserSettings? Settings { get; set; }
+
+    protected override async Task OnInitializedAsync()
     {
-        if (firstRender)
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (Settings is null && userId is not null)
+            Settings = await SettingsService.GetSettingsAsync(userId);
+        if (Settings is not null)
         {
-            var state = await AuthStateProvider.GetAuthenticationStateAsync();
-            userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            if (userId is not null)
-            {
-                var settings = await SettingsService.GetSettingsAsync(userId);
-                pomodoroDuration   = settings.PomodoroDurationMinutes;
-                shortBreakDuration = settings.ShortBreakDurationMinutes;
-                longBreakDuration  = settings.LongBreakDurationMinutes;
-            }
-
-            SetDurationForMode();
-            StateHasChanged();
-            return;
+            pomodoroDuration   = Settings.PomodoroDurationMinutes;
+            shortBreakDuration = Settings.ShortBreakDurationMinutes;
+            longBreakDuration  = Settings.LongBreakDurationMinutes;
         }
 
+        SetDurationForMode();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
         var title = TabTitle;
         if (title != shownTabTitle)
         {

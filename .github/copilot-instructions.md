@@ -49,22 +49,25 @@ Migrations are applied automatically on startup (`db.Database.Migrate()` in `Pro
 ### Why two layers?
 Cookie auth (`SignInManager`) **cannot** be called from within a Blazor Server circuit — the response has already started. All sign-in/sign-out operations must go through Razor Pages, which run in the normal HTTP pipeline.
 
-### Auth state in Blazor components
-`[CascadingParameter] Task<AuthenticationState>` is unreliable during Blazor Server circuit startup. The pattern used throughout this app:
+### Loading user data in Blazor components
+Interactive pages are prerendered: the server renders them once as plain HTML, then the circuit renders them again. Load the data in `OnInitializedAsync` and keep it in a `[PersistentState]` public property. The prerender fills it, it travels inside the page, and the circuit starts from it. The first HTML then already shows the data, and the database is queried once instead of twice:
 
 ```csharp
-// ✅ Correct pattern for all components and pages
 @inject AuthenticationStateProvider AuthStateProvider
 
-protected override async Task OnAfterRenderAsync(bool firstRender)
+[PersistentState]
+public List<PomodoroTask>? PrerenderedTasks { get; set; }
+
+protected override async Task OnInitializedAsync()
 {
-    if (!firstRender) return;
     var state = await AuthStateProvider.GetAuthenticationStateAsync();
     userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    // load data...
-    StateHasChanged();
+    if (userId is not null)
+        PrerenderedTasks ??= await TaskService.GetTasksAsync(userId);
 }
 ```
+
+JS interop doesn't work while prerendering. Browser values the server needs then (the viewer's UTC offset, "hide done tasks") are cookies that `site.js` writes, read through `Services/ClientPreferences.cs` from `[CascadingParameter] HttpContext? HttpContext`; that is null once the circuit runs. When a cookie is missing (first visit), fall back to JS in `OnAfterRenderAsync`, as `Stats.razor` does. Don't use `[CascadingParameter] Task<AuthenticationState>`; inject `AuthenticationStateProvider` as above.
 
 ### DbContext
 Uses `IDbContextFactory<ApplicationDbContext>` everywhere — **never inject `ApplicationDbContext` directly** into Blazor services. Each service method creates and disposes its own context:
@@ -81,7 +84,10 @@ await using var db = await _factory.CreateDbContextAsync();
 ## Key Conventions
 
 ### Styling
-- **Tailwind Play 3.4.17**, served from `wwwroot/lib/tailwindcss/` and configured in `wwwroot/js/tailwind.config.js`; both layouts load it.
+- **Tailwind 3.4.17, compiled at build time.** Config is `tailwind.config.js` and input is `Styles/tailwind.css`. The output `wwwroot/css/tailwind.css` holds only the classes found in `.razor` / `.cshtml` / `wwwroot/js`, so write class names out in full, never assembled from pieces at runtime.
+  - The `TailwindCss` target in the `.csproj` regenerates it on build when the CLI is in `.tools/` (`sh tools/get-tailwind.sh`). Commit the regenerated file with markup changes.
+  - The Containerfile always regenerates it.
+- **Fonts** are self-hosted in `wwwroot/fonts`. The `@font-face` rules are in `app.css`, and the CSP allows no font or style origin but `'self'`.
 - **Light and dark themes.** `js/theme.js` sets `data-theme` on `<html>` before the first paint, from localStorage or else the system setting. The ☀/☾ button (`data-theme-toggle`, handled in `site.js`) switches it. Theme colours are CSS variables in `wwwroot/css/app.css`. Never hard-code `white`, `rgba(255,255,255,…)` or `#0c0c18`:
   - `text-fg`, `bg-fg/10`, `border-fg/20` and so on for the foreground: white on dark, ink on light.
   - `bg-surface` for cards and `bg-field` for text inputs.
@@ -108,7 +114,7 @@ All registered as `Scoped` in `Program.cs`.
 ### Adding a new page
 1. Create `Components/Pages/MyPage.razor` with `@page "/route"`, `@attribute [Authorize]`, `@rendermode InteractiveServer`, and put `<SignOutGuard />` in it. Without the guard, an open tab of a deleted user, or of one whose password changed, keeps working.
    - No inline `<script>` or `on…=""` handlers: the Content-Security-Policy in `Program.cs` allows scripts only from `wwwroot`.
-2. Use `@inject AuthenticationStateProvider AuthStateProvider` and the `OnAfterRenderAsync(firstRender)` pattern to load user data.
+2. Use `@inject AuthenticationStateProvider AuthStateProvider` and load user data in `OnInitializedAsync` into a `[PersistentState]` property (see "Loading user data in Blazor components").
 3. Add a nav link in `Components/Layout/MainLayout.razor`.
 
 ### IIS deployment

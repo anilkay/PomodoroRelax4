@@ -176,13 +176,16 @@ app.Use(async (context, next) =>
 app.UseStaticFiles(new StaticFileOptions
 {
     // The layouts add ?v=<content hash> (asp-append-version / IFileVersionProvider), so those URLs
-    // change whenever the file does and can be cached for good. Anything requested without it
-    // (blazor.server.js, the sound) is revalidated each time, so a deploy is never hidden by cache.
+    // change whenever the file does and can be cached for good. So can /fonts/, whose file names
+    // carry the font version. Anything else (blazor.server.js, the sound) is revalidated each time,
+    // so a deploy is never hidden by cache.
     OnPrepareResponse = context =>
     {
-        context.Context.Response.Headers.CacheControl = context.Context.Request.Query.ContainsKey("v")
-            ? "public, max-age=31536000, immutable"
-            : "no-cache";
+        var request = context.Context.Request;
+        context.Context.Response.Headers.CacheControl =
+            request.Query.ContainsKey("v") || request.Path.StartsWithSegments("/fonts")
+                ? "public, max-age=31536000, immutable"
+                : "no-cache";
     }
 });
 app.UseRateLimiter();
@@ -221,14 +224,14 @@ public partial class Program
         return Results.File(write(data), contentType, fileName);
     }
 
-    // Scripts only from this app (no inline script, no CDN). Styles allow 'unsafe-inline' because
-    // the Tailwind Play script injects a <style> element and components use style attributes.
+    // Everything from this app: no inline script, no CDN, fonts in wwwroot/fonts. Styles allow
+    // 'unsafe-inline' because components use style attributes.
     // connect-src 'self' covers Blazor's WebSocket to the same host.
     private const string ContentSecurityPolicy =
         "default-src 'self'; " +
         "script-src 'self'; " +
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-        "font-src 'self' https://fonts.gstatic.com; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "font-src 'self'; " +
         "img-src 'self' data:; " +
         "media-src 'self'; " +
         "connect-src 'self'; " +

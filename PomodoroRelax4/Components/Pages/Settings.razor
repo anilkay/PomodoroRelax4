@@ -15,7 +15,7 @@
     <div class="bg-surface border border-fg/5 rounded-lg p-6 w-full max-w-md">
         <h2 class="text-xl font-bold text-fg mb-6">⚙ Timer Settings</h2>
 
-        @if (settings is null)
+        @if (Values is null)
         {
             <div class="text-fg/50 text-center py-8">Loading…</div>
         }
@@ -33,12 +33,12 @@
                     <label class="block text-fg/80 text-sm mb-1 font-medium">🍅 Pomodoro</label>
                     <div class="flex items-center gap-3">
                         <button class="w-8 h-8 bg-fg/10 hover:bg-fg/20 text-fg rounded-md transition font-bold"
-                                @onclick="() => settings.PomodoroDurationMinutes = Math.Max(1, settings.PomodoroDurationMinutes - 1)">−</button>
+                                @onclick="() => Values.PomodoroDurationMinutes = Math.Max(1, Values.PomodoroDurationMinutes - 1)">−</button>
                         <input type="number" min="1" max="120"
-                               @bind="settings.PomodoroDurationMinutes"
+                               @bind="Values.PomodoroDurationMinutes"
                                class="w-20 text-center px-2 py-2 rounded bg-field border border-fg/10 text-fg font-bold text-lg focus:outline-none focus:ring-2 focus:ring-fg/40" />
                         <button class="w-8 h-8 bg-fg/10 hover:bg-fg/20 text-fg rounded-md transition font-bold"
-                                @onclick="() => settings.PomodoroDurationMinutes = Math.Min(120, settings.PomodoroDurationMinutes + 1)">+</button>
+                                @onclick="() => Values.PomodoroDurationMinutes = Math.Min(120, Values.PomodoroDurationMinutes + 1)">+</button>
                         <span class="text-fg/50 text-sm">min</span>
                     </div>
                 </div>
@@ -47,12 +47,12 @@
                     <label class="block text-fg/80 text-sm mb-1 font-medium">☕ Short Break</label>
                     <div class="flex items-center gap-3">
                         <button class="w-8 h-8 bg-fg/10 hover:bg-fg/20 text-fg rounded-md transition font-bold"
-                                @onclick="() => settings.ShortBreakDurationMinutes = Math.Max(1, settings.ShortBreakDurationMinutes - 1)">−</button>
+                                @onclick="() => Values.ShortBreakDurationMinutes = Math.Max(1, Values.ShortBreakDurationMinutes - 1)">−</button>
                         <input type="number" min="1" max="60"
-                               @bind="settings.ShortBreakDurationMinutes"
+                               @bind="Values.ShortBreakDurationMinutes"
                                class="w-20 text-center px-2 py-2 rounded bg-field border border-fg/10 text-fg font-bold text-lg focus:outline-none focus:ring-2 focus:ring-fg/40" />
                         <button class="w-8 h-8 bg-fg/10 hover:bg-fg/20 text-fg rounded-md transition font-bold"
-                                @onclick="() => settings.ShortBreakDurationMinutes = Math.Min(60, settings.ShortBreakDurationMinutes + 1)">+</button>
+                                @onclick="() => Values.ShortBreakDurationMinutes = Math.Min(60, Values.ShortBreakDurationMinutes + 1)">+</button>
                         <span class="text-fg/50 text-sm">min</span>
                     </div>
                 </div>
@@ -61,12 +61,12 @@
                     <label class="block text-fg/80 text-sm mb-1 font-medium">🛌 Long Break</label>
                     <div class="flex items-center gap-3">
                         <button class="w-8 h-8 bg-fg/10 hover:bg-fg/20 text-fg rounded-md transition font-bold"
-                                @onclick="() => settings.LongBreakDurationMinutes = Math.Max(1, settings.LongBreakDurationMinutes - 1)">−</button>
+                                @onclick="() => Values.LongBreakDurationMinutes = Math.Max(1, Values.LongBreakDurationMinutes - 1)">−</button>
                         <input type="number" min="1" max="120"
-                               @bind="settings.LongBreakDurationMinutes"
+                               @bind="Values.LongBreakDurationMinutes"
                                class="w-20 text-center px-2 py-2 rounded bg-field border border-fg/10 text-fg font-bold text-lg focus:outline-none focus:ring-2 focus:ring-fg/40" />
                         <button class="w-8 h-8 bg-fg/10 hover:bg-fg/20 text-fg rounded-md transition font-bold"
-                                @onclick="() => settings.LongBreakDurationMinutes = Math.Min(120, settings.LongBreakDurationMinutes + 1)">+</button>
+                                @onclick="() => Values.LongBreakDurationMinutes = Math.Min(120, Values.LongBreakDurationMinutes + 1)">+</button>
                         <span class="text-fg/50 text-sm">min</span>
                     </div>
                 </div>
@@ -105,34 +105,34 @@
 </div>
 
 @code {
-    private UserSettings? settings;
     private bool saved;
     private bool saving;
-    private string? userId;
     private readonly CancellationTokenSource _cts = new();
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    // Loaded while prerendering and carried into the circuit, so the form is there in the first HTML
+    [PersistentState]
+    public UserSettings? Values { get; set; }
+
+    protected override async Task OnInitializedAsync()
     {
-        if (!firstRender || settings is not null) return;
+        if (Values is not null) return;
 
         var state = await AuthStateProvider.GetAuthenticationStateAsync();
-        userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId is not null)
-            settings = await SettingsService.GetSettingsAsync(userId);
-
-        StateHasChanged();
+            Values = await SettingsService.GetSettingsAsync(userId);
     }
 
     private async Task Save()
     {
-        if (settings is null || saving) return;
+        if (Values is null || saving) return;
         saving = true;
 
-        settings.PomodoroDurationMinutes    = Math.Clamp(settings.PomodoroDurationMinutes,    1, 120);
-        settings.ShortBreakDurationMinutes  = Math.Clamp(settings.ShortBreakDurationMinutes,   1,  60);
-        settings.LongBreakDurationMinutes   = Math.Clamp(settings.LongBreakDurationMinutes,    1, 120);
+        Values.PomodoroDurationMinutes    = Math.Clamp(Values.PomodoroDurationMinutes,    1, 120);
+        Values.ShortBreakDurationMinutes  = Math.Clamp(Values.ShortBreakDurationMinutes,   1,  60);
+        Values.LongBreakDurationMinutes   = Math.Clamp(Values.LongBreakDurationMinutes,    1, 120);
 
-        await SettingsService.SaveSettingsAsync(settings);
+        await SettingsService.SaveSettingsAsync(Values);
 
         saving = false;
         saved = true;

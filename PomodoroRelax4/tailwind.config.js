@@ -1,7 +1,12 @@
-// Tailwind Play config for both layouts. Loaded right after
-// lib/tailwindcss/tailwindcss-play-3.4.17.js, which defines window.tailwind.
-// Kept in a file rather than inline so the Content-Security-Policy can be script-src 'self'.
-tailwind.config = {
+// Tailwind config for both layouts. The CLI reads it at build time (TailwindCss target in the
+// .csproj) and writes wwwroot/css/tailwind.css with only the classes the files below use.
+// A class name built from pieces at runtime is not found; write each one out in full.
+module.exports = {
+    content: [
+        './Components/**/*.razor',
+        './Pages/**/*.cshtml',
+        './wwwroot/js/**/*.js',
+    ],
     theme: {
         extend: {
             fontFamily: {

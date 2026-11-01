@@ -1,0 +1,4 @@
+/* Input for the Tailwind CLI; the output is wwwroot/css/tailwind.css. Hand-written styles go in wwwroot/css/app.css. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

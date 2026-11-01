@@ -20,4 +20,23 @@
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
   </ItemGroup>
 
+  <!-- Tailwind: wwwroot/css/tailwind.css holds only the classes the pages use. It is regenerated on
+       build when the standalone CLI is in .tools/ (sh tools/get-tailwind.sh); without the CLI the
+       committed copy is used, so commit the regenerated file along with new classes. -->
+  <PropertyGroup>
+    <TailwindCli Condition="'$(TailwindCli)' == '' and '$(OS)' == 'Windows_NT'">$(MSBuildProjectDirectory)\..\.tools\tailwindcss.exe</TailwindCli>
+    <TailwindCli Condition="'$(TailwindCli)' == ''">$(MSBuildProjectDirectory)/../.tools/tailwindcss</TailwindCli>
+  </PropertyGroup>
+  <ItemGroup>
+    <TailwindInput Include="tailwind.config.js;Styles/tailwind.css;Components/**/*.razor;Pages/**/*.cshtml;wwwroot/js/**/*.js" />
+  </ItemGroup>
+  <Target Name="TailwindCss" BeforeTargets="BeforeBuild" Condition="Exists('$(TailwindCli)')"
+          Inputs="@(TailwindInput)" Outputs="wwwroot/css/tailwind.css">
+    <Exec Command="&quot;$(TailwindCli)&quot; -c tailwind.config.js -i Styles/tailwind.css -o wwwroot/css/tailwind.css --minify"
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+  <Target Name="TailwindCliMissing" BeforeTargets="BeforeBuild" Condition="!Exists('$(TailwindCli)')">
+    <Message Importance="high" Text="Tailwind CLI not in .tools/, using the committed wwwroot/css/tailwind.css. After adding Tailwind classes run: sh tools/get-tailwind.sh" />
+  </Target>
+
 </Project>

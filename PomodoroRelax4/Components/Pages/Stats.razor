@@ -13,7 +13,7 @@
 {
     <div class="text-danger text-center mt-12 bg-surface border border-fg/5 rounded-lg p-4">⚠ @error</div>
 }
-else if (vm is null)
+else if (Model is null)
 {
     <div class="text-fg/60 text-center mt-12">Loading…</div>
 }
@@ -22,19 +22,19 @@ else
     <!-- Summary Cards -->
     <div class="grid grid-cols-2 gap-3 mb-6">
         <div class="bg-surface border border-fg/5 rounded-lg p-4 text-center">
-            <div class="text-4xl font-bold text-fg">@vm.TodayPomodoros</div>
+            <div class="text-4xl font-bold text-fg">@Model.TodayPomodoros</div>
             <div class="text-fg/60 text-sm mt-1">Today</div>
         </div>
         <div class="bg-surface border border-fg/5 rounded-lg p-4 text-center">
-            <div class="text-4xl font-bold text-fg">@vm.WeekPomodoros</div>
+            <div class="text-4xl font-bold text-fg">@Model.WeekPomodoros</div>
             <div class="text-fg/60 text-sm mt-1">This Week</div>
         </div>
         <div class="bg-surface border border-fg/5 rounded-lg p-4 text-center">
-            <div class="text-4xl font-bold text-fg">@vm.TotalPomodoros</div>
+            <div class="text-4xl font-bold text-fg">@Model.TotalPomodoros</div>
             <div class="text-fg/60 text-sm mt-1">All Time 🍅</div>
         </div>
         <div class="bg-surface border border-fg/5 rounded-lg p-4 text-center">
-            <div class="text-4xl font-bold text-fg">@FormatTime(vm.TotalFocusMinutes)</div>
+            <div class="text-4xl font-bold text-fg">@FormatTime(Model.TotalFocusMinutes)</div>
             <div class="text-fg/60 text-sm mt-1">Focus Time</div>
         </div>
     </div>
@@ -43,11 +43,11 @@ else
     <div class="bg-surface border border-fg/5 rounded-lg p-4 mb-6">
         <div class="flex items-center justify-between mb-2">
             <span class="text-fg font-semibold">Tasks Completed</span>
-            <span class="text-fg font-bold">@vm.TasksCompleted / @vm.TasksTotal</span>
+            <span class="text-fg font-bold">@Model.TasksCompleted / @Model.TasksTotal</span>
         </div>
-        @if (vm.TasksTotal > 0)
+        @if (Model.TasksTotal > 0)
         {
-            var pct = (int)((double)vm.TasksCompleted / vm.TasksTotal * 100);
+            var pct = (int)((double)Model.TasksCompleted / Model.TasksTotal * 100);
             <div class="w-full bg-fg/10 rounded-full h-2">
                 <div class="bg-fg/70 h-2 rounded-full transition-all duration-500"
                      style="width:@pct%"></div>
@@ -59,14 +59,14 @@ else
     <div class="bg-surface border border-fg/5 rounded-lg p-4 mb-6">
         <h3 class="text-fg font-semibold mb-4">Last 7 Days</h3>
         @{
-            var maxPomodoros = vm.Last7Days.Max(d => d.Pomodoros);
+            var maxPomodoros = Model.Last7Days.Max(d => d.Pomodoros);
             if (maxPomodoros == 0) maxPomodoros = 1;
         }
         <div class="space-y-2">
-            @foreach (var day in vm.Last7Days)
+            @foreach (var day in Model.Last7Days)
             {
                 var barPct = (int)((double)day.Pomodoros / maxPomodoros * 100);
-                var isToday = day == vm.Last7Days[^1];
+                var isToday = day == Model.Last7Days[^1];
                 <div class="flex items-center gap-3">
                     <span class="text-fg/60 text-xs w-8 shrink-0">@day.Date.ToString("ddd")</span>
                     <div class="flex-1 bg-fg/10 rounded h-6 relative overflow-hidden">
@@ -80,12 +80,12 @@ else
     </div>
 
     <!-- Recent Sessions -->
-    @if (vm.RecentSessions.Any())
+    @if (Model.RecentSessions.Any())
     {
         <div class="bg-surface border border-fg/5 rounded-lg p-4">
             <h3 class="text-fg font-semibold mb-3">Recent Sessions</h3>
             <div class="space-y-2">
-                @foreach (var s in vm.RecentSessions)
+                @foreach (var s in Model.RecentSessions)
                 {
                     <div class="flex items-center justify-between text-sm">
                         <div class="flex items-center gap-2">
@@ -112,29 +112,51 @@ else
 }
 
 @code {
-    private StatsViewModel? vm;
     private string? error;
+
+    // Only set while prerendering (statically, before the circuit exists)
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    // Computed while prerendering when the tz cookie gives the viewer's day, and carried into the
+    // circuit; otherwise (first visit) computed once the browser can be asked
+    [PersistentState]
+    public StatsViewModel? Model { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Model is null && ClientPreferences.UtcOffsetMinutes(HttpContext) is int offset)
+            await LoadAsync(offset);
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || vm is not null || error is not null) return;
+        if (!firstRender || Model is not null || error is not null) return;
 
         try
         {
-            var state = await AuthStateProvider.GetAuthenticationStateAsync();
-            var userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (userId is not null)
-            {
-                var offsetMinutes = await JS.InvokeAsync<int>("pomodoroTime.utcOffsetMinutes");
-                vm = await StatsService.GetStatsAsync(userId, TimeSpan.FromMinutes(offsetMinutes));
-            }
+            await LoadAsync(await JS.InvokeAsync<int>("pomodoroTime.utcOffsetMinutes"));
         }
         catch (Exception ex)
         {
             error = ex.Message;
         }
-
         StateHasChanged();
+    }
+
+    private async Task LoadAsync(int offsetMinutes)
+    {
+        try
+        {
+            var state = await AuthStateProvider.GetAuthenticationStateAsync();
+            var userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId is not null)
+                Model = await StatsService.GetStatsAsync(userId, TimeSpan.FromMinutes(offsetMinutes));
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
     }
 
     private static string FormatTime(int totalMinutes)

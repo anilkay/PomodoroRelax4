@@ -363,3 +363,6 @@ MigrationBackup/
 FodyWeavers.xsd
 # Deploy secrets (copied from deploy/*.env.example)
 deploy/*.env
+
+# Tailwind standalone CLI (tools/get-tailwind.sh)
+.tools/

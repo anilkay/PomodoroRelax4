@@ -8,10 +8,10 @@
     <title>PomodoroRelax</title>
     <base href="/" />
     <script src="@V("/js/theme.js")"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet" />
-    <script src="@V("/lib/tailwindcss/tailwindcss-play-3.4.17.js")"></script>
-    <script src="@V("/js/tailwind.config.js")"></script>
+    @* Fetched at once instead of after the CSS is parsed; the timer digits use JetBrains Mono *@
+    <link rel="preload" href="/fonts/inter-v20-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/jetbrains-mono-v24-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="@V("/css/tailwind.css")" />
     <link rel="stylesheet" href="@V("/css/app.css")" />
     <HeadOutlet />
 </head>

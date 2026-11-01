@@ -1,16 +1,20 @@
 // Small page helpers, in a file so the Content-Security-Policy needs no inline script.
 
-// Minutes ahead of UTC (Istanbul: 180); Stats uses it for "today" and the 7-day chart
+// Small per-browser values in cookies, so the server can use them when it prerenders a page
+// (Services/ClientPreferences.cs reads them)
+window.pomodoroPrefs = {
+    set: (name, value) => {
+        const secure = location.protocol === 'https:' ? '; secure' : '';
+        document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=31536000; samesite=lax${secure}`;
+    }
+};
+
+// Minutes ahead of UTC (Istanbul: 180); Stats and the task due dates use it for "today"
 window.pomodoroTime = { utcOffsetMinutes: () => -new Date().getTimezoneOffset() };
+pomodoroPrefs.set('tz', String(pomodoroTime.utcOffsetMinutes()));
 
 // The timer writes the remaining time into the tab title while it runs
 window.pomodoroPage = { setTitle: t => { document.title = t; } };
-
-// Small per-browser view choices (such as hiding finished tasks); null when storage is blocked
-window.pomodoroPrefs = {
-    get: key => { try { return localStorage.getItem(key); } catch { return null; } },
-    set: (key, value) => { try { localStorage.setItem(key, value); } catch { } }
-};
 
 // [data-theme-toggle] buttons switch light/dark and remember it (theme.js applies it on load)
 document.addEventListener('click', e => {

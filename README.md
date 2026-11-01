@@ -40,6 +40,10 @@ Public sign-up is closed. `Admin:Email` (env `Admin__Email`) names the administr
 
 Users change their own password from **Settings → Change password** (`/Account/ChangePassword`). Under **Manage** on each user, the admin can set a new password (which also clears a lockout from failed sign-ins) or delete the user together with their tasks, sessions and settings. The admin account itself is managed through `Admin:Email`, not from this page. A changed, reset or deleted account's other browsers and open tabs are signed out at the next security-stamp check, within 5 minutes.
 
+## Tasks
+
+The list under the timer is the to-do list. Click a task to count the next pomodoros toward it. ✎ opens a task to change its title, estimated pomodoros, priority (Low, Normal, High), due date and notes. High-priority tasks get a red `!`. The due date reads "Due today", "Due tomorrow" or a weekday, and turns red as "Overdue" once it has passed. The day is the user's own day in the browser's time zone. **Hide done** keeps finished tasks out of the list; each browser remembers that choice. **Clear done** deletes them. Their pomodoros stay in Stats.
+
 ## Light and dark mode
 
 The ☀/☾ button in the top bar switches between a light and a dark theme, on the sign-in pages as well. The choice is stored in the browser (localStorage), so each device keeps its own. Until someone picks one, the operating system's setting decides. Colours come from CSS variables in `wwwroot/css/app.css`.

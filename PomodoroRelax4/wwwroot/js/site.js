@@ -6,6 +6,12 @@ window.pomodoroTime = { utcOffsetMinutes: () => -new Date().getTimezoneOffset() 
 // The timer writes the remaining time into the tab title while it runs
 window.pomodoroPage = { setTitle: t => { document.title = t; } };
 
+// Small per-browser view choices (such as hiding finished tasks); null when storage is blocked
+window.pomodoroPrefs = {
+    get: key => { try { return localStorage.getItem(key); } catch { return null; } },
+    set: (key, value) => { try { localStorage.setItem(key, value); } catch { } }
+};
+
 // [data-theme-toggle] buttons switch light/dark and remember it (theme.js applies it on load)
 document.addEventListener('click', e => {
     if (!(e.target instanceof Element) || !e.target.closest('[data-theme-toggle]')) return;

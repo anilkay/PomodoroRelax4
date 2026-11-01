@@ -19,7 +19,8 @@ public class TaskService : ITaskService
             .ToListAsync();
     }
 
-    public async Task<PomodoroTask> AddTaskAsync(string userId, string title, int estimatedPomodoros)
+    public async Task<PomodoroTask> AddTaskAsync(string userId, string title, int estimatedPomodoros,
+        TaskPriority priority = TaskPriority.Normal, DateOnly? dueDate = null, string? notes = null)
     {
         await using var db = await _factory.CreateDbContextAsync();
 
@@ -32,7 +33,10 @@ public class TaskService : ITaskService
             UserId = userId,
             Title = title,
             EstimatedPomodoros = estimatedPomodoros,
-            SortOrder = maxOrder + 1
+            SortOrder = maxOrder + 1,
+            Priority = Enum.IsDefined(priority) ? priority : TaskPriority.Normal,
+            DueDate = dueDate,
+            Notes = CleanNotes(notes)
         };
 
         db.PomodoroTasks.Add(task);
@@ -52,7 +56,27 @@ public class TaskService : ITaskService
         stored.Title = task.Title;
         stored.IsCompleted = task.IsCompleted;
         stored.EstimatedPomodoros = task.EstimatedPomodoros;
+        stored.Priority = Enum.IsDefined(task.Priority) ? task.Priority : TaskPriority.Normal;
+        stored.DueDate = task.DueDate;
+        stored.Notes = CleanNotes(task.Notes);
         await db.SaveChangesAsync();
+    }
+
+    public async Task<int> DeleteCompletedTasksAsync(string userId)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        // The database sets the sessions' TaskId to null (OnDelete SetNull), so stats keep them
+        return await db.PomodoroTasks
+            .Where(t => t.UserId == userId && t.IsCompleted)
+            .ExecuteDeleteAsync();
+    }
+
+    // Blank notes are stored as null; longer ones are cut to the column size
+    private static string? CleanNotes(string? notes)
+    {
+        notes = notes?.Trim();
+        if (string.IsNullOrEmpty(notes)) return null;
+        return notes.Length > PomodoroTask.MaxNotesLength ? notes[..PomodoroTask.MaxNotesLength] : notes;
     }
 
     public async Task DeleteTaskAsync(int taskId, string userId)

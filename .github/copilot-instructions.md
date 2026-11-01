@@ -29,6 +29,8 @@ dotnet ef migrations add <MigrationName> --context ApplicationDbContext
 dotnet ef migrations add <MigrationName> --context PostgresDbContext --output-dir Migrations/PostgreSql --namespace PomodoroRelax4.Migrations.PostgreSql
 ```
 
+Each context has its own design-time factory (`ApplicationDbContextDesignTimeFactory`, `PostgresDbContextDesignTimeFactory`). Without the SQL Server one, the tools would build `ApplicationDbContext` from the PostgreSQL factory and put a PostgreSQL migration into `Migrations/PostgreSql`. A new non-nullable column gets the same default in both migrations; check the generated `defaultValue`.
+
 `PostgresDbContext` (in `Data/PostgresDbContext.cs`) subclasses `ApplicationDbContext` only to own the PostgreSQL migrations; services keep depending on `IDbContextFactory<ApplicationDbContext>`. Always write `DateTime.UtcNow` — PostgreSQL's `timestamp with time zone` rejects local times.
 
 Migrations are applied automatically on startup (`db.Database.Migrate()` in `Program.cs`).
@@ -96,7 +98,7 @@ Do **not** use `.Join().DefaultIfEmpty()` for left joins in EF Core — it does 
 
 ### Services
 Each domain has an interface + implementation in `Services/`:
-- `ITaskService` / `TaskService` — CRUD + reorder for `PomodoroTask`
+- `ITaskService` / `TaskService` — CRUD, reorder and clear-done for `PomodoroTask`. Priority, due date (`DateOnly`, the user's own day) and notes are carried through `ExportService` / `ImportService` as well.
 - `ISessionService` / `SessionService` — record completed timer sessions
 - `ISettingsService` / `SettingsService` — per-user timer durations
 - `IStatsService` / `StatsService` — aggregate statistics view model

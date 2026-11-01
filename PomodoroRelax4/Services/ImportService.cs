@@ -135,7 +135,11 @@ public class ImportService : IImportService
                 (int)(Number(row, columns, "Completed pomodoros") ?? 0),
                 Text(row, columns, "Done").Equals("Yes", StringComparison.OrdinalIgnoreCase),
                 (int)(Number(row, columns, "Order") ?? row.RowNumber()),
-                Date(row, columns, "Created (UTC)") ?? DateTime.UtcNow));
+                Date(row, columns, "Created (UTC)") ?? DateTime.UtcNow,
+                Enum.TryParse<TaskPriority>(Text(row, columns, "Priority"), ignoreCase: true, out var priority)
+                    ? priority : TaskPriority.Normal,
+                Date(row, columns, "Due") is DateTime due ? DateOnly.FromDateTime(due) : null,
+                Text(row, columns, "Notes") is { Length: > 0 } notes ? notes : null));
         }
         return tasks;
     }
@@ -255,7 +259,12 @@ public class ImportService : IImportService
                     CompletedPomodoros = Math.Clamp(t.CompletedPomodoros, 0, 100_000),
                     IsCompleted = t.IsCompleted,
                     SortOrder = nextOrder++,
-                    CreatedAt = created
+                    CreatedAt = created,
+                    Priority = Enum.IsDefined(t.Priority) ? t.Priority : TaskPriority.Normal,
+                    DueDate = t.DueDate,
+                    Notes = t.Notes?.Trim() is { Length: > 0 } notes
+                        ? notes[..Math.Min(notes.Length, PomodoroTask.MaxNotesLength)]
+                        : null
                 };
                 db.PomodoroTasks.Add(task);
                 tasksByKey[key] = task;

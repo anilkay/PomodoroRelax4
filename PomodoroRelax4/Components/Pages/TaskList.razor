@@ -1,7 +1,9 @@
 @using Microsoft.AspNetCore.Components.Authorization
+@using System.Globalization
 @using System.Security.Claims
 @inject ITaskService TaskService
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
 @rendermode InteractiveServer
 
 <div class="mt-8">
@@ -15,111 +17,129 @@
 
     <!-- Task Items -->
     <div class="space-y-2 mb-3">
-        @foreach (var task in tasks)
+        @foreach (var task in VisibleTasks)
         {
             var isSelected = task.Id == SelectedTaskId;
-            <div class="glass rounded-xl px-4 py-3 flex items-center gap-3 cursor-pointer transition-all duration-150 hover:bg-fg/[0.07]"
-                 style="@(isSelected ? "border-left: 3px solid var(--accent, #f87171); padding-left: 13px;" : "border-left: 3px solid transparent;")"
-                 @onclick="() => SelectTask(task)">
+            var due = DueLabel(task);
+            <div class="glass rounded-xl transition-all duration-150"
+                 style="@(isSelected ? "border-left: 3px solid var(--accent, #f87171);" : "border-left: 3px solid transparent;")">
 
-                <!-- Complete checkbox -->
-                <button class="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-all duration-150"
-                        style="@(task.IsCompleted ? "background:rgb(var(--fg) / 0.2);border:1.5px solid rgb(var(--fg) / 0.4)" : "border:1.5px solid rgb(var(--fg) / 0.25)")"
-                        @onclick:stopPropagation="true"
-                        @onclick="() => ToggleComplete(task)">
-                    @if (task.IsCompleted)
-                    {
-                        <span style="color:rgb(var(--fg) / 0.8);font-size:0.6rem;line-height:1">✓</span>
-                    }
-                </button>
+                <div class="px-4 py-3 flex items-center gap-3 cursor-pointer rounded-xl transition hover:bg-fg/[0.03]"
+                     style="@(isSelected ? "padding-left: 13px;" : "")"
+                     @onclick="() => SelectTask(task)">
 
-                <!-- Task info -->
-                <div class="flex-1 min-w-0">
-                    @if (editingTaskId == task.Id)
-                    {
-                        <input @bind="editTitle" @bind:event="oninput"
-                               @onkeydown="e => HandleEditKeyDown(e, task)"
-                               class="w-full focus:outline-none pb-0.5"
-                               style="background:transparent;color:rgb(var(--fg));border-bottom:1px solid rgb(var(--fg) / 0.3)"
-                               @ref="editInput" />
-                    }
-                    else
-                    {
+                    <!-- Complete checkbox -->
+                    <button class="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-all duration-150"
+                            style="@(task.IsCompleted ? "background:rgb(var(--fg) / 0.2);border:1.5px solid rgb(var(--fg) / 0.4)" : "border:1.5px solid rgb(var(--fg) / 0.25)")"
+                            title="@(task.IsCompleted ? "Mark as not done" : "Mark as done")"
+                            @onclick:stopPropagation="true"
+                            @onclick="() => ToggleComplete(task)">
+                        @if (task.IsCompleted)
+                        {
+                            <span style="color:rgb(var(--fg) / 0.8);font-size:0.6rem;line-height:1">✓</span>
+                        }
+                    </button>
+
+                    <!-- Task info -->
+                    <div class="flex-1 min-w-0">
                         <span class="block truncate text-sm @(task.IsCompleted ? "line-through" : "")"
                               style="color:@(task.IsCompleted ? "rgb(var(--fg) / 0.35)" : "rgb(var(--fg) / 0.85)")">
+                            @if (task.Priority == TaskPriority.High && !task.IsCompleted)
+                            {
+                                <span class="text-danger font-bold mr-1" title="High priority">!</span>
+                            }
                             @task.Title
                         </span>
-                    }
+
+                        @if (due is not null || task.Priority == TaskPriority.Low || task.Notes is not null)
+                        {
+                            <div class="flex items-center gap-2 mt-0.5 text-[11px] min-w-0" style="color:rgb(var(--fg) / 0.4)">
+                                @if (due is not null)
+                                {
+                                    <span class="flex-shrink-0 @(due.Value.Overdue ? "text-danger font-medium" : "")">@due.Value.Text</span>
+                                }
+                                @if (task.Priority == TaskPriority.Low)
+                                {
+                                    <span class="flex-shrink-0">Low priority</span>
+                                }
+                                @if (task.Notes is not null)
+                                {
+                                    <span class="truncate" title="@task.Notes">✎ @task.Notes</span>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Pomodoro count pill -->
+                    <span class="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
+                          style="background:rgb(var(--fg) / 0.06);color:rgb(var(--fg) / 0.4)"
+                          title="Pomodoros done / estimated">
+                        @task.CompletedPomodoros / @task.EstimatedPomodoros
+                    </span>
+
+                    <!-- Actions -->
+                    <div class="flex items-center gap-0.5 flex-shrink-0">
+                        <button class="w-7 h-7 rounded-lg flex items-center justify-center transition hover:bg-fg/10 text-xs"
+                                style="color:rgb(var(--fg) / 0.3)"
+                                @onclick:stopPropagation="true"
+                                @onclick="() => Move(task, -1)" title="Move up">▴</button>
+                        <button class="w-7 h-7 rounded-lg flex items-center justify-center transition hover:bg-fg/10 text-xs"
+                                style="color:rgb(var(--fg) / 0.3)"
+                                @onclick:stopPropagation="true"
+                                @onclick="() => Move(task, 1)" title="Move down">▾</button>
+                        <button class="w-7 h-7 rounded-lg flex items-center justify-center transition hover:bg-fg/10 text-xs"
+                                style="color:rgb(var(--fg) / 0.3)"
+                                @onclick:stopPropagation="true"
+                                @onclick="() => StartEdit(task)" title="Edit">✎</button>
+                        <button class="w-7 h-7 rounded-lg flex items-center justify-center transition hover:bg-red-500/20 text-xs"
+                                style="color:rgb(var(--fg) / 0.3)"
+                                @onclick:stopPropagation="true"
+                                @onclick="() => DeleteTask(task)" title="Delete">✕</button>
+                    </div>
                 </div>
 
-                <!-- Pomodoro count pill -->
-                <span class="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
-                      style="background:rgb(var(--fg) / 0.06);color:rgb(var(--fg) / 0.4)">
-                    @task.CompletedPomodoros / @task.EstimatedPomodoros
-                </span>
-
-                <!-- Actions -->
-                <div class="flex items-center gap-0.5 flex-shrink-0">
-                    <button class="w-7 h-7 rounded-lg flex items-center justify-center transition hover:bg-fg/10 text-xs"
-                            style="color:rgb(var(--fg) / 0.3)"
-                            @onclick:stopPropagation="true"
-                            @onclick="() => MoveUp(task)" title="Move up">▴</button>
-                    <button class="w-7 h-7 rounded-lg flex items-center justify-center transition hover:bg-fg/10 text-xs"
-                            style="color:rgb(var(--fg) / 0.3)"
-                            @onclick:stopPropagation="true"
-                            @onclick="() => MoveDown(task)" title="Move down">▾</button>
-                    <button class="w-7 h-7 rounded-lg flex items-center justify-center transition hover:bg-fg/10 text-xs"
-                            style="color:rgb(var(--fg) / 0.3)"
-                            @onclick:stopPropagation="true"
-                            @onclick="() => StartEdit(task)" title="Edit">✎</button>
-                    <button class="w-7 h-7 rounded-lg flex items-center justify-center transition hover:bg-red-500/20 text-xs"
-                            style="color:rgb(var(--fg) / 0.3)"
-                            @onclick:stopPropagation="true"
-                            @onclick="() => DeleteTask(task)" title="Delete">✕</button>
-                </div>
+                @if (editingTaskId == task.Id && editDraft is not null)
+                {
+                    <div class="px-4 pb-4">
+                        @Editor(editDraft, "Save", () => SaveEdit(task), CancelEdit)
+                    </div>
+                }
             </div>
         }
     </div>
 
+    <!-- Finished tasks: hide or clear -->
+    @if (DoneCount > 0)
+    {
+        <div class="flex items-center justify-end gap-1 mb-3 text-xs" style="color:rgb(var(--fg) / 0.4)">
+            @if (confirmingClear)
+            {
+                <span class="mr-1">Delete @DoneCount done @(DoneCount == 1 ? "task" : "tasks")? Their pomodoros stay in Stats.</span>
+                <button class="px-2 py-1 rounded-lg transition hover:bg-fg/5" @onclick="() => confirmingClear = false">Cancel</button>
+                <button class="px-2 py-1 rounded-lg font-semibold text-danger transition hover:bg-red-500/10" @onclick="ClearDone">Delete</button>
+            }
+            else
+            {
+                <button class="px-2 py-1 rounded-lg transition hover:bg-fg/5" @onclick="ToggleHideDone">
+                    @(hideDone ? $"Show done ({DoneCount})" : "Hide done")
+                </button>
+                <button class="px-2 py-1 rounded-lg transition hover:bg-fg/5" @onclick="() => confirmingClear = true">Clear done</button>
+            }
+        </div>
+    }
+
     <!-- Add Task -->
-    @if (isAdding)
+    @if (addDraft is not null)
     {
         <div class="glass rounded-xl p-4 mt-2">
-            <input @bind="newTitle" @bind:event="oninput"
-                   placeholder="What are you working on?"
-                   class="w-full focus:outline-none text-sm pb-2 mb-4"
-                   style="background:transparent;color:rgb(var(--fg));border-bottom:1px solid rgb(var(--fg) / 0.15)"
-                   placeholder-style="color:rgb(var(--fg) / 0.3)"
-                   @onkeydown="HandleAddKeyDown" />
-
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <span class="text-xs" style="color:rgb(var(--fg) / 0.4)">Pomodoros</span>
-                    <button class="w-6 h-6 rounded-md flex items-center justify-center transition hover:bg-fg/10 text-sm"
-                            style="background:rgb(var(--fg) / 0.06);color:rgb(var(--fg) / 0.6)"
-                            @onclick="() => newEstimated = Math.Max(1, newEstimated - 1)">−</button>
-                    <span class="w-5 text-center text-sm" style="color:rgb(var(--fg))">@newEstimated</span>
-                    <button class="w-6 h-6 rounded-md flex items-center justify-center transition hover:bg-fg/10 text-sm"
-                            style="background:rgb(var(--fg) / 0.06);color:rgb(var(--fg) / 0.6)"
-                            @onclick="() => newEstimated++">+</button>
-                </div>
-
-                <div class="flex gap-2">
-                    <button class="px-3 py-1.5 text-xs rounded-lg transition hover:bg-fg/5"
-                            style="color:rgb(var(--fg) / 0.4)"
-                            @onclick="CancelAdd">Cancel</button>
-                    <button class="px-4 py-1.5 text-xs rounded-lg font-semibold transition hover:opacity-90"
-                            style="background:rgb(var(--fg) / 0.12);color:rgb(var(--fg))"
-                            @onclick="AddTask">Add</button>
-                </div>
-            </div>
+            @Editor(addDraft, "Add", AddTask, CancelAdd)
         </div>
     }
     else
     {
         <button class="w-full py-3 rounded-xl text-xs font-medium transition-all duration-150 hover:bg-fg/5"
                 style="border:1.5px dashed rgb(var(--fg) / 0.12);color:rgb(var(--fg) / 0.3)"
-                @onclick="() => isAdding = true">
+                @onclick="StartAdd">
             + Add task
         </button>
     }
@@ -132,17 +152,33 @@
     [Parameter]
     public EventCallback<(int? Id, string? Title)> OnTaskSelected { get; set; }
 
+    private const string HideDonePref = "tasks.hideDone";
+
     private List<PomodoroTask> tasks = new();
     private string? userId;
     private bool _loaded;
 
-    private bool isAdding;
-    private string newTitle = "";
-    private int newEstimated = 1;
+    // The user's own calendar day, for "Today" / "Overdue"; UTC until the browser reports its offset
+    private DateOnly today = DateOnly.FromDateTime(DateTime.UtcNow);
+    private bool hideDone;
+    private bool confirmingClear;
 
+    private TaskDraft? addDraft;
     private int? editingTaskId;
-    private string editTitle = "";
-    private ElementReference editInput;
+    private TaskDraft? editDraft;
+
+    private IEnumerable<PomodoroTask> VisibleTasks => hideDone ? tasks.Where(t => !t.IsCompleted) : tasks;
+    private int DoneCount => tasks.Count(t => t.IsCompleted);
+
+    // What the add and edit forms change; copied onto the task only on save
+    private sealed class TaskDraft
+    {
+        public string Title { get; set; } = "";
+        public int Estimated { get; set; } = 1;
+        public TaskPriority Priority { get; set; } = TaskPriority.Normal;
+        public DateOnly? DueDate { get; set; }
+        public string? Notes { get; set; }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -153,6 +189,14 @@
         userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId is not null)
             tasks = await TaskService.GetTasksAsync(userId);
+
+        try
+        {
+            var offsetMinutes = await JS.InvokeAsync<int>("pomodoroTime.utcOffsetMinutes");
+            today = DateOnly.FromDateTime(DateTime.UtcNow.AddMinutes(offsetMinutes));
+            hideDone = await JS.InvokeAsync<string?>("pomodoroPrefs.get", HideDonePref) == "1";
+        }
+        catch (JSException) { /* keep the defaults */ }
 
         StateHasChanged();
     }
@@ -166,6 +210,91 @@
         }
     }
 
+    private RenderFragment Editor(TaskDraft draft, string saveLabel, Func<Task> save, Action cancel) => @<div>
+        <input @bind="draft.Title" @bind:event="oninput"
+               placeholder="What are you working on?"
+               maxlength="200"
+               class="w-full focus:outline-none text-sm pb-2 mb-4"
+               style="background:transparent;color:rgb(var(--fg));border-bottom:1px solid rgb(var(--fg) / 0.15)"
+               @onkeydown="e => HandleEditorKeyDown(e, save, cancel)" />
+
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-3 mb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xs" style="color:rgb(var(--fg) / 0.4)">Pomodoros</span>
+                <button class="w-6 h-6 rounded-md flex items-center justify-center transition hover:bg-fg/10 text-sm"
+                        style="background:rgb(var(--fg) / 0.06);color:rgb(var(--fg) / 0.6)"
+                        @onclick="() => draft.Estimated = Math.Max(1, draft.Estimated - 1)">−</button>
+                <span class="w-5 text-center text-sm" style="color:rgb(var(--fg))">@draft.Estimated</span>
+                <button class="w-6 h-6 rounded-md flex items-center justify-center transition hover:bg-fg/10 text-sm"
+                        style="background:rgb(var(--fg) / 0.06);color:rgb(var(--fg) / 0.6)"
+                        @onclick="() => draft.Estimated = Math.Min(99, draft.Estimated + 1)">+</button>
+            </div>
+
+            <div class="flex items-center gap-1" role="group" aria-label="Priority">
+                @foreach (var p in Enum.GetValues<TaskPriority>())
+                {
+                    var on = draft.Priority == p;
+                    <button class="px-2 py-1 rounded-md text-xs transition hover:bg-fg/10"
+                            style="@(on ? "background:rgb(var(--fg) / 0.14);color:rgb(var(--fg))" : "color:rgb(var(--fg) / 0.4)")"
+                            aria-pressed="@(on ? "true" : "false")"
+                            @onclick="() => draft.Priority = p">@p</button>
+                }
+            </div>
+
+            <div class="flex items-center gap-2">
+                <span class="text-xs" style="color:rgb(var(--fg) / 0.4)">Due</span>
+                <input type="date" @bind="draft.DueDate"
+                       class="text-xs rounded-md px-2 py-1 bg-field focus:outline-none"
+                       style="color:rgb(var(--fg));border:1px solid rgb(var(--fg) / 0.12)" />
+                @if (draft.DueDate is not null)
+                {
+                    <button class="text-xs transition hover:opacity-80" style="color:rgb(var(--fg) / 0.4)"
+                            title="Remove the due date"
+                            @onclick="() => draft.DueDate = null">✕</button>
+                }
+            </div>
+        </div>
+
+        <textarea @bind="draft.Notes" @bind:event="oninput"
+                  placeholder="Notes (optional)"
+                  rows="2"
+                  maxlength="@PomodoroTask.MaxNotesLength"
+                  class="w-full text-xs rounded-md px-2 py-1.5 mb-3 bg-field focus:outline-none resize-y"
+                  style="color:rgb(var(--fg));border:1px solid rgb(var(--fg) / 0.12)"></textarea>
+
+        <div class="flex justify-end gap-2">
+            <button class="px-3 py-1.5 text-xs rounded-lg transition hover:bg-fg/5"
+                    style="color:rgb(var(--fg) / 0.4)"
+                    @onclick="cancel">Cancel</button>
+            <button class="px-4 py-1.5 text-xs rounded-lg font-semibold transition hover:opacity-90"
+                    style="background:rgb(var(--fg) / 0.12);color:rgb(var(--fg))"
+                    @onclick="save">@saveLabel</button>
+        </div>
+    </div>;
+
+    private static async Task HandleEditorKeyDown(KeyboardEventArgs e, Func<Task> save, Action cancel)
+    {
+        if (e.Key == "Enter") await save();
+        if (e.Key == "Escape") cancel();
+    }
+
+    private (string Text, bool Overdue)? DueLabel(PomodoroTask task)
+    {
+        if (task.DueDate is not DateOnly due) return null;
+        var days = due.DayNumber - today.DayNumber;
+        var date = due.ToString(due.Year == today.Year ? "d MMM" : "d MMM yyyy", CultureInfo.InvariantCulture);
+
+        if (days < 0)
+            return task.IsCompleted ? ($"Due {date}", false) : ($"Overdue · {date}", true);
+        return days switch
+        {
+            0 => ("Due today", false),
+            1 => ("Due tomorrow", false),
+            < 7 => ($"Due {due.ToString("dddd", CultureInfo.InvariantCulture)}", false),
+            _ => ($"Due {date}", false)
+        };
+    }
+
     private async Task SelectTask(PomodoroTask task)
     {
         var newId = task.Id == SelectedTaskId ? (int?)null : task.Id;
@@ -173,51 +302,64 @@
         await OnTaskSelected.InvokeAsync((newId, newTitle));
     }
 
+    private void StartAdd()
+    {
+        addDraft = new TaskDraft();
+        CancelEdit();
+    }
+
     private async Task AddTask()
     {
-        if (string.IsNullOrWhiteSpace(newTitle) || userId is null) return;
+        if (addDraft is null || string.IsNullOrWhiteSpace(addDraft.Title) || userId is null) return;
 
-        await TaskService.AddTaskAsync(userId, newTitle.Trim(), newEstimated);
+        await TaskService.AddTaskAsync(userId, addDraft.Title.Trim(), addDraft.Estimated,
+            addDraft.Priority, addDraft.DueDate, addDraft.Notes);
         tasks = await TaskService.GetTasksAsync(userId);
-
-        newTitle = "";
-        newEstimated = 1;
-        isAdding = false;
+        addDraft = null;
     }
 
-    private async Task HandleAddKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter") await AddTask();
-        if (e.Key == "Escape") CancelAdd();
-    }
-
-    private void CancelAdd()
-    {
-        isAdding = false;
-        newTitle = "";
-        newEstimated = 1;
-    }
+    private void CancelAdd() => addDraft = null;
 
     private void StartEdit(PomodoroTask task)
     {
+        if (editingTaskId == task.Id)
+        {
+            CancelEdit();
+            return;
+        }
         editingTaskId = task.Id;
-        editTitle = task.Title;
+        editDraft = new TaskDraft
+        {
+            Title = task.Title,
+            Estimated = task.EstimatedPomodoros,
+            Priority = task.Priority,
+            DueDate = task.DueDate,
+            Notes = task.Notes
+        };
+        addDraft = null;
     }
 
-    private async Task HandleEditKeyDown(KeyboardEventArgs e, PomodoroTask task)
+    private void CancelEdit()
     {
-        if (e.Key == "Enter") await SaveEdit(task);
-        if (e.Key == "Escape") editingTaskId = null;
+        editingTaskId = null;
+        editDraft = null;
     }
 
     private async Task SaveEdit(PomodoroTask task)
     {
-        if (!string.IsNullOrWhiteSpace(editTitle))
-        {
-            task.Title = editTitle.Trim();
-            await TaskService.UpdateTaskAsync(task);
-        }
-        editingTaskId = null;
+        if (editDraft is null || string.IsNullOrWhiteSpace(editDraft.Title)) return;
+
+        task.Title = editDraft.Title.Trim();
+        task.EstimatedPomodoros = editDraft.Estimated;
+        task.Priority = editDraft.Priority;
+        task.DueDate = editDraft.DueDate;
+        task.Notes = string.IsNullOrWhiteSpace(editDraft.Notes) ? null : editDraft.Notes.Trim();
+        await TaskService.UpdateTaskAsync(task);
+        CancelEdit();
+
+        // The timer shows the selected task's title
+        if (task.Id == SelectedTaskId)
+            await OnTaskSelected.InvokeAsync((task.Id, task.Title));
     }
 
     private async Task ToggleComplete(PomodoroTask task)
@@ -231,29 +373,46 @@
         if (userId is null) return;
         await TaskService.DeleteTaskAsync(task.Id, userId);
         tasks = await TaskService.GetTasksAsync(userId);
+        if (editingTaskId == task.Id) CancelEdit();
 
         if (SelectedTaskId == task.Id)
             await OnTaskSelected.InvokeAsync((null, null));
     }
 
-    private async Task MoveUp(PomodoroTask task)
+    private async Task ToggleHideDone()
     {
-        var idx = tasks.IndexOf(task);
-        if (idx <= 0 || userId is null) return;
-
-        var ids = tasks.Select(t => t.Id).ToList();
-        (ids[idx], ids[idx - 1]) = (ids[idx - 1], ids[idx]);
-        await TaskService.ReorderTasksAsync(userId, ids);
-        tasks = await TaskService.GetTasksAsync(userId);
+        hideDone = !hideDone;
+        try { await JS.InvokeVoidAsync("pomodoroPrefs.set", HideDonePref, hideDone ? "1" : "0"); }
+        catch (JSException) { /* only lasts this page */ }
     }
 
-    private async Task MoveDown(PomodoroTask task)
+    private async Task ClearDone()
     {
-        var idx = tasks.IndexOf(task);
-        if (idx < 0 || idx >= tasks.Count - 1 || userId is null) return;
+        confirmingClear = false;
+        if (userId is null) return;
+
+        var selectedWasDone = tasks.Any(t => t.Id == SelectedTaskId && t.IsCompleted);
+        await TaskService.DeleteCompletedTasksAsync(userId);
+        tasks = await TaskService.GetTasksAsync(userId);
+        if (editingTaskId is int id && tasks.All(t => t.Id != id)) CancelEdit();
+
+        if (selectedWasDone)
+            await OnTaskSelected.InvokeAsync((null, null));
+    }
+
+    // Swaps with the neighbour the user sees, so hidden done tasks don't swallow a click
+    private async Task Move(PomodoroTask task, int direction)
+    {
+        if (userId is null) return;
+        var visible = VisibleTasks.ToList();
+        var idx = visible.IndexOf(task);
+        var other = idx + direction;
+        if (idx < 0 || other < 0 || other >= visible.Count) return;
 
         var ids = tasks.Select(t => t.Id).ToList();
-        (ids[idx], ids[idx + 1]) = (ids[idx + 1], ids[idx]);
+        var a = ids.IndexOf(task.Id);
+        var b = ids.IndexOf(visible[other].Id);
+        (ids[a], ids[b]) = (ids[b], ids[a]);
         await TaskService.ReorderTasksAsync(userId, ids);
         tasks = await TaskService.GetTasksAsync(userId);
     }

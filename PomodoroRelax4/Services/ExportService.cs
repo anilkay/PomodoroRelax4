@@ -21,9 +21,11 @@ public record ExportedAccount(string UserName, string Email);
 
 public record ExportedSettings(int PomodoroMinutes, int ShortBreakMinutes, int LongBreakMinutes);
 
+// The last three are optional so exports made before they existed still import
 public record ExportedTask(
     int Id, string Title, int EstimatedPomodoros, int CompletedPomodoros,
-    bool IsCompleted, int SortOrder, DateTime CreatedAtUtc);
+    bool IsCompleted, int SortOrder, DateTime CreatedAtUtc,
+    TaskPriority Priority = TaskPriority.Normal, DateOnly? DueDate = null, string? Notes = null);
 
 public record ExportedSession(
     TimerMode Type, int DurationSeconds, DateTime StartedAtUtc, DateTime? CompletedAtUtc,
@@ -71,7 +73,7 @@ public class ExportService : IExportService
             .Where(t => t.UserId == userId)
             .OrderBy(t => t.SortOrder)
             .Select(t => new ExportedTask(t.Id, t.Title, t.EstimatedPomodoros, t.CompletedPomodoros,
-                t.IsCompleted, t.SortOrder, t.CreatedAt))
+                t.IsCompleted, t.SortOrder, t.CreatedAt, t.Priority, t.DueDate, t.Notes))
             .ToListAsync();
 
         // Task titles joined in memory (see StatsService for why not in the query)
@@ -103,7 +105,8 @@ public class ExportService : IExportService
         // Header names are what ImportService reads back; rename them in both places.
         // "Id" / "Task id" link sessions to their task when the file is imported again.
         var tasks = workbook.AddWorksheet("Tasks");
-        WriteHeader(tasks, "Id", "Order", "Title", "Estimated", "Completed pomodoros", "Done", "Created (UTC)");
+        WriteHeader(tasks, "Id", "Order", "Title", "Estimated", "Completed pomodoros", "Done", "Created (UTC)",
+            "Priority", "Due", "Notes");
         var row = 2;
         foreach (var t in data.Tasks)
         {
@@ -114,9 +117,14 @@ public class ExportService : IExportService
             tasks.Cell(row, 5).SetValue(t.CompletedPomodoros);
             tasks.Cell(row, 6).SetValue(t.IsCompleted ? "Yes" : "No");
             tasks.Cell(row, 7).SetValue(t.CreatedAtUtc);
+            tasks.Cell(row, 8).SetValue(t.Priority.ToString());
+            if (t.DueDate is DateOnly due)
+                tasks.Cell(row, 9).SetValue(due.ToDateTime(TimeOnly.MinValue));
+            tasks.Cell(row, 10).SetValue(t.Notes ?? "");
             row++;
         }
         tasks.Column(7).Style.DateFormat.Format = "yyyy-mm-dd hh:mm:ss";
+        tasks.Column(9).Style.DateFormat.Format = "yyyy-mm-dd";
 
         var sessions = workbook.AddWorksheet("Sessions");
         WriteHeader(sessions, "Type", "Minutes", "Started (UTC)", "Completed (UTC)", "Task", "Task id");

@@ -4,26 +4,27 @@
 
     <!-- Nav -->
     <header class="sticky top-0 z-20" style="background: rgb(var(--header) / 0.7); backdrop-filter: blur(16px); border-bottom: 1px solid rgb(var(--fg) / 0.06);">
-        <div class="max-w-2xl mx-auto px-5 py-3 flex items-center justify-between">
-            <a href="/" class="flex items-center gap-2 text-fg font-semibold tracking-tight no-underline hover:opacity-80 transition" style="text-decoration:none">
+        <div class="max-w-2xl mx-auto px-3 sm:px-5 py-3 flex items-center justify-between">
+            <a href="/" class="flex items-center gap-2 text-fg font-semibold tracking-tight no-underline hover:opacity-80 transition" style="text-decoration:none" aria-label="PomodoroRelax">
                 <span style="color: @AccentColor; font-size:1.1rem">&#9679;</span>
-                <span>PomodoroRelax</span>
+                @* On phones the name would push the nav (and the theme button) off screen *@
+                <span class="hidden sm:inline">PomodoroRelax</span>
             </a>
             <div class="flex items-center gap-1">
             <AuthorizeView>
                 <Authorized>
                     <div class="flex items-center gap-1">
                         <a href="/stats"
-                           class="text-fg hover:text-fg text-xs font-medium px-3 py-1.5 rounded-lg transition hover:bg-fg/5" style="opacity:0.5; text-decoration:none">
+                           class="text-fg hover:text-fg text-xs font-medium px-2 sm:px-3 py-1.5 rounded-lg transition hover:bg-fg/5" style="opacity:0.5; text-decoration:none">
                             Stats
                         </a>
                         <a href="/settings"
-                           class="text-fg hover:text-fg text-xs font-medium px-3 py-1.5 rounded-lg transition hover:bg-fg/5" style="opacity:0.5; text-decoration:none">
+                           class="text-fg hover:text-fg text-xs font-medium px-2 sm:px-3 py-1.5 rounded-lg transition hover:bg-fg/5" style="opacity:0.5; text-decoration:none">
                             Settings
                         </a>
                         <AuthorizeView Roles="Admin" Context="adminContext">
                             <a href="/Admin/Users"
-                               class="text-fg hover:text-fg text-xs font-medium px-3 py-1.5 rounded-lg transition hover:bg-fg/5" style="opacity:0.5; text-decoration:none">
+                               class="text-fg hover:text-fg text-xs font-medium px-2 sm:px-3 py-1.5 rounded-lg transition hover:bg-fg/5" style="opacity:0.5; text-decoration:none">
                                 Users
                             </a>
                         </AuthorizeView>
@@ -31,7 +32,7 @@
                         <form method="post" action="/Account/Logout" class="m-0">
                             <AntiforgeryToken />
                             <button type="submit"
-                                    class="text-fg text-xs px-3 py-1.5 rounded-lg transition hover:bg-fg/5" style="opacity:0.3">
+                                    class="text-fg text-xs px-2 sm:px-3 py-1.5 rounded-lg transition hover:bg-fg/5" style="opacity:0.3">
                                 Sign out
                             </button>
                         </form>

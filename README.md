@@ -54,6 +54,17 @@ Users change their own password from **Settings → Change password** (`/Account
 
 The list under the timer is the to-do list. Click a task to count the next pomodoros toward it. ✎ opens a task to change its title, estimated pomodoros, priority (Low, Normal, High), due date and notes. High-priority tasks get a red `!`. The due date reads "Due today", "Due tomorrow" or a weekday, and turns red as "Overdue" once it has passed. The day is the user's own day in the browser's time zone. **Hide done** keeps finished tasks out of the list; each browser remembers that choice. **Clear done** deletes them. Their pomodoros stay in Stats.
 
+## Stats
+
+**Stats** shows today's pomodoros, the current streak (days in a row with at least one, still counting until today ends) with the best streak of the past year, the all-time total, and how many pomodoros done tasks took against their estimates (`1.3× estimate`). Below that:
+
+- **Activity** for the last 7 days, 30 days or 12 months, with the change from the period before, the daily average and the best day.
+- **Time of day**: the hour pomodoros were started in, over the same period.
+- **Top tasks**: the five tasks with the most pomodoros in the period, and how many had no task.
+- **Past year**: one square a day, darker for more pomodoros (half a year on a phone).
+
+Days are the viewer's own, in the browser's time zone. Only completed focus sessions count; breaks show only under Recent Sessions.
+
 ## Light and dark mode
 
 The ☀/☾ button in the top bar switches between a light and a dark theme, on the sign-in pages as well. The choice is stored in the browser (localStorage), so each device keeps its own. Until someone picks one, the operating system's setting decides. Colours come from CSS variables in `wwwroot/css/app.css`.

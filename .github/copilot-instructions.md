@@ -67,6 +67,8 @@ protected override async Task OnInitializedAsync()
 }
 ```
 
+Put `[PersistentState]` on a component the page renders, never on the routable page with `@rendermode` itself. That page is the root of the circuit, and on it ASP.NET Core 10.0.13 throws a `NullReferenceException` in `RemoteRenderer.GetMarkerKey` while restoring the value, which kills the circuit, so the page never goes interactive. `Stats.razor` and `Settings.razor` are therefore thin pages around `StatsPanel` and `SettingsForm`; `Home` has the state in `TaskList` and `TimerDisplay`.
+
 JS interop doesn't work while prerendering. Browser values the server needs then (the viewer's UTC offset, "hide done tasks") are cookies that `site.js` writes, read through `Services/ClientPreferences.cs` from `[CascadingParameter] HttpContext? HttpContext`; that is null once the circuit runs. When a cookie is missing (first visit), fall back to JS in `OnAfterRenderAsync`, as `Stats.razor` does. Don't use `[CascadingParameter] Task<AuthenticationState>`; inject `AuthenticationStateProvider` as above.
 
 ### DbContext
@@ -107,14 +109,14 @@ Each domain has an interface + implementation in `Services/`:
 - `ITaskService` / `TaskService` — CRUD, reorder and clear-done for `PomodoroTask`. Priority, due date (`DateOnly`, the user's own day) and notes are carried through `ExportService` / `ImportService` as well.
 - `ISessionService` / `SessionService` — record completed timer sessions
 - `ISettingsService` / `SettingsService` — per-user timer durations
-- `IStatsService` / `StatsService` — aggregate statistics view model
+- `IStatsService` / `StatsService` — the Stats page's view model: counts, streaks, the 7-day / 30-day / 12-month activity with hours and top tasks, and a year of daily counts for the heatmap. It reads one window of pomodoros (the heatmap's year, or two years for the 12-month view) and groups them in memory by the viewer's local day.
 
 All registered as `Scoped` in `Program.cs`.
 
 ### Adding a new page
 1. Create `Components/Pages/MyPage.razor` with `@page "/route"`, `@attribute [Authorize]`, `@rendermode InteractiveServer`, and put `<SignOutGuard />` in it. Without the guard, an open tab of a deleted user, or of one whose password changed, keeps working.
    - No inline `<script>` or `on…=""` handlers: the Content-Security-Policy in `Program.cs` allows scripts only from `wwwroot`.
-2. Use `@inject AuthenticationStateProvider AuthStateProvider` and load user data in `OnInitializedAsync` into a `[PersistentState]` property (see "Loading user data in Blazor components").
+2. Put the content in a child component (`MyPagePanel.razor`) that the page renders. There, use `@inject AuthenticationStateProvider AuthStateProvider` and load user data in `OnInitializedAsync` into a `[PersistentState]` property (see "Loading user data in Blazor components").
 3. Add a nav link in `Components/Layout/MainLayout.razor`.
 
 ### IIS deployment

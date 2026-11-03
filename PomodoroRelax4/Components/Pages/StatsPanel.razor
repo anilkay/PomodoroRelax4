@@ -1,0 +1,378 @@
+@using System.Globalization
+@using System.Security.Claims
+@inject IStatsService StatsService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
+
+@if (error is not null)
+{
+    <div class="text-danger text-center mt-12 bg-surface border border-fg/5 rounded-lg p-4">⚠ @error</div>
+}
+else if (Model is null)
+{
+    <div class="text-fg/60 text-center mt-12">Loading…</div>
+}
+else
+{
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div class="bg-surface border border-fg/5 rounded-lg p-4 text-center">
+            <div class="text-4xl font-bold text-fg">@Model.TodayPomodoros</div>
+            <div class="text-fg/60 text-sm mt-1">Today</div>
+            <div class="text-fg/40 text-xs mt-0.5">@Time(Model.TodayFocusMinutes) focus</div>
+        </div>
+        <div class="bg-surface border border-fg/5 rounded-lg p-4 text-center" title="Days in a row with at least one pomodoro">
+            <div class="text-4xl font-bold text-fg">@Model.CurrentStreak</div>
+            <div class="text-fg/60 text-sm mt-1">Day streak @(Model.CurrentStreak > 0 ? "🔥" : "")</div>
+            <div class="text-fg/40 text-xs mt-0.5">Best @Model.BestStreak in a year</div>
+        </div>
+        <div class="bg-surface border border-fg/5 rounded-lg p-4 text-center">
+            <div class="text-4xl font-bold text-fg">@Model.TotalPomodoros</div>
+            <div class="text-fg/60 text-sm mt-1">All Time 🍅</div>
+            <div class="text-fg/40 text-xs mt-0.5">@Time(Model.TotalFocusMinutes) focus</div>
+        </div>
+        <div class="bg-surface border border-fg/5 rounded-lg p-4 text-center">
+            <div class="text-4xl font-bold text-fg">@Model.TasksCompleted<span class="text-fg/40 text-2xl">/@Model.TasksTotal</span></div>
+            <div class="text-fg/60 text-sm mt-1">Tasks done</div>
+            @if (Model.EstimateRatio is double ratio)
+            {
+                <div class="text-fg/40 text-xs mt-0.5" title="Pomodoros spent on done tasks, against what they were estimated at">
+                    @ratio.ToString("0.0", CultureInfo.InvariantCulture)× estimate
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Activity over the selected range -->
+    <div class="bg-surface border border-fg/5 rounded-lg p-4 mb-6 transition-opacity @(loading ? "opacity-60" : "")">
+        <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
+            <h3 class="text-fg font-semibold">Activity</h3>
+            <div class="flex bg-fg/5 rounded-lg p-0.5" role="group" aria-label="Period">
+                @foreach (var range in Enum.GetValues<StatsRange>())
+                {
+                    var selected = range == Model.Range;
+                    <button type="button" aria-pressed="@(selected ? "true" : "false")" disabled="@loading"
+                            class="text-xs font-medium px-3 py-1 rounded-md transition @(selected ? "bg-surface text-fg shadow-sm" : "text-fg/50 hover:text-fg")"
+                            @onclick="() => SetRangeAsync(range)">
+                        @RangeName(range)
+                    </button>
+                }
+            </div>
+        </div>
+
+        <div class="flex items-baseline gap-x-3 gap-y-1 flex-wrap mb-1">
+            <span class="text-2xl font-bold text-fg">@Pomodoros(Model.RangePomodoros)</span>
+            <span class="text-fg/60 text-sm">@Time(Model.RangeFocusMinutes) focus</span>
+        </div>
+        <div class="text-fg/50 text-xs mb-4 flex gap-x-4 gap-y-1 flex-wrap">
+            @if (Change() is string change)
+            {
+                <span>@change</span>
+            }
+            <span>@(((double)Model.RangePomodoros / Model.RangeDays).ToString("0.0", CultureInfo.InvariantCulture)) a day on average</span>
+            @if (Model.BestDay is { Pomodoros: > 0 } best)
+            {
+                <span>Best day @best.Date.ToString("ddd d MMM", CultureInfo.InvariantCulture) · @best.Pomodoros</span>
+            }
+        </div>
+
+        @{
+            var maxBar = Math.Max(1, Model.Bars.Max(b => b.Pomodoros));
+            var labelValues = Model.Range == StatsRange.Week;
+        }
+        <div class="flex items-end gap-0.5 h-36 border-b border-fg/10" role="img"
+             aria-label="@($"Pomodoros per {(Model.Range == StatsRange.Year ? "month" : "day")}: " + string.Join(", ", Model.Bars.Select(b => b.Tooltip)))">
+            @foreach (var bar in Model.Bars)
+            {
+                var pct = bar.Pomodoros * 100.0 / maxBar;
+                <div class="flex-1 h-full flex flex-col justify-end items-center group" title="@bar.Tooltip">
+                    @if (labelValues && bar.Pomodoros > 0)
+                    {
+                        <span class="text-fg/60 text-xs mb-1">@bar.Pomodoros</span>
+                    }
+                    <div class="w-full max-w-[2.5rem] rounded-t transition-all duration-500 group-hover:opacity-80 @(bar.IsCurrent ? "bg-pomodoro" : "bg-pomodoro/50")"
+                         style="height:@(bar.Pomodoros > 0 ? $"max(3px, {pct.ToString("0.#", CultureInfo.InvariantCulture)}%)" : "0")"></div>
+                </div>
+            }
+        </div>
+        <div class="flex gap-0.5 mt-1.5">
+            @foreach (var bar in Model.Bars)
+            {
+                <span class="flex-1 text-center text-fg/50 text-xs @(bar.IsCurrent ? "text-fg font-semibold" : "")">@(bar.ShowLabel ? bar.Label : "")</span>
+            }
+        </div>
+    </div>
+
+    <!-- Time of day -->
+    @if (Model.RangePomodoros > 0)
+    {
+        var maxHour = Math.Max(1, Model.Hours.Max());
+        var peak = Array.IndexOf(Model.Hours, Model.Hours.Max());
+        <div class="bg-surface border border-fg/5 rounded-lg p-4 mb-6 transition-opacity @(loading ? "opacity-60" : "")">
+            <div class="flex items-baseline justify-between gap-3 mb-4 flex-wrap">
+                <h3 class="text-fg font-semibold">Time of day</h3>
+                <span class="text-fg/50 text-xs">Most often started @HourRange(peak)</span>
+            </div>
+            <div class="flex items-end gap-0.5 h-20 border-b border-fg/10" role="img"
+                 aria-label="@("Pomodoros by starting hour: " + string.Join(", ", Model.Hours.Select((n, h) => $"{h:00}:00 {n}")))">
+                @for (var h = 0; h < 24; h++)
+                {
+                    var count = Model.Hours[h];
+                    var pct = count * 100.0 / maxHour;
+                    <div class="flex-1 h-full flex flex-col justify-end group" title="@($"{HourRange(h)}: {Pomodoros(count)}")">
+                        <div class="w-full rounded-t group-hover:opacity-80 @(h == peak ? "bg-pomodoro" : "bg-pomodoro/50")"
+                             style="height:@(count > 0 ? $"max(3px, {pct.ToString("0.#", CultureInfo.InvariantCulture)}%)" : "0")"></div>
+                    </div>
+                }
+            </div>
+            <div class="flex mt-1.5 text-fg/50 text-xs">
+                @for (var h = 0; h < 24; h += 6)
+                {
+                    <span class="flex-1">@($"{h:00}:00")</span>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Top tasks in the range -->
+    @if (Model.TopTasks.Any())
+    {
+        var maxTask = Model.TopTasks.Max(t => t.Pomodoros);
+        <div class="bg-surface border border-fg/5 rounded-lg p-4 mb-6 transition-opacity @(loading ? "opacity-60" : "")">
+            <h3 class="text-fg font-semibold mb-3">Top tasks</h3>
+            <div class="space-y-3">
+                @foreach (var task in Model.TopTasks)
+                {
+                    <div>
+                        <div class="flex items-baseline justify-between gap-3 text-sm">
+                            <span class="truncate @(task.IsCompleted ? "text-fg/50 line-through" : "text-fg/80")">@task.Title</span>
+                            <span class="text-fg/60 text-xs whitespace-nowrap">@task.Pomodoros 🍅 · @Time(task.FocusMinutes)</span>
+                        </div>
+                        <div class="w-full bg-fg/5 rounded-full h-1.5 mt-1">
+                            <div class="bg-pomodoro/70 h-1.5 rounded-full" style="width:@((task.Pomodoros * 100 / maxTask))%"></div>
+                        </div>
+                    </div>
+                }
+            </div>
+            @if (Model.PomodorosWithoutTask > 0)
+            {
+                <div class="text-fg/40 text-xs mt-3">@Pomodoros(Model.PomodorosWithoutTask) without a task</div>
+            }
+        </div>
+    }
+
+    <!-- Past year -->
+    <div class="bg-surface border border-fg/5 rounded-lg p-4 mb-6">
+        <div class="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
+            <h3 class="text-fg font-semibold">Past year</h3>
+            <span class="text-fg/50 text-xs">@Model.ActiveDays active @(Model.ActiveDays == 1 ? "day" : "days")</span>
+        </div>
+        @* A phone gets the last half year, so the cells stay big enough to read *@
+        <div class="sm:hidden">@Heatmap(26)</div>
+        <div class="hidden sm:block">@Heatmap(53)</div>
+        <div class="flex items-center justify-end gap-1 mt-2 text-fg/50 text-xs">
+            <span class="mr-1">Less</span>
+            @for (var level = 0; level <= 4; level++)
+            {
+                <svg width="10" height="10" aria-hidden="true"><rect width="10" height="10" rx="2" style="@CellStyle(level)" /></svg>
+            }
+            <span class="ml-1">More</span>
+        </div>
+    </div>
+
+    <!-- Recent Sessions -->
+    @if (Model.RecentSessions.Any())
+    {
+        <div class="bg-surface border border-fg/5 rounded-lg p-4">
+            <h3 class="text-fg font-semibold mb-3">Recent Sessions</h3>
+            <div class="space-y-2">
+                @foreach (var s in Model.RecentSessions)
+                {
+                    <div class="flex items-center justify-between text-sm">
+                        <div class="flex items-center gap-2">
+                            <span class="@BadgeClass(s.SessionType) text-app-base font-semibold text-xs px-2 py-0.5 rounded-full">
+                                @ModeLabel(s.SessionType)
+                            </span>
+                            @if (s.TaskTitle is not null)
+                            {
+                                <span class="text-fg/70 truncate max-w-[160px]">@s.TaskTitle</span>
+                            }
+                        </div>
+                        <div class="text-fg/50 text-xs whitespace-nowrap">
+                            @s.DurationMinutes min · @s.CompletedAt.ToString("MMM d HH:mm", CultureInfo.InvariantCulture)
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="text-center mt-6">
+        <a href="/" class="text-fg/60 hover:text-fg text-sm transition">← Back to Timer</a>
+    </div>
+}
+
+@code {
+    private string? error;
+    private bool loading;
+
+    // Only set while prerendering (statically, before the circuit exists)
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    // Computed while prerendering when the tz cookie gives the viewer's day, and carried into the
+    // circuit; otherwise (first visit) computed once the browser can be asked
+    [PersistentState]
+    public StatsViewModel? Model { get; set; }
+
+    // Kept for reloading when the period changes
+    [PersistentState]
+    public int? UtcOffsetMinutes { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Model is null && ClientPreferences.UtcOffsetMinutes(HttpContext) is int offset)
+        {
+            UtcOffsetMinutes = offset;
+            await LoadAsync(StatsRange.Week);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || Model is not null || error is not null) return;
+
+        try
+        {
+            UtcOffsetMinutes = await JS.InvokeAsync<int>("pomodoroTime.utcOffsetMinutes");
+            await LoadAsync(StatsRange.Week);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        StateHasChanged();
+    }
+
+    private async Task SetRangeAsync(StatsRange range)
+    {
+        if (Model?.Range == range || loading) return;
+        loading = true;
+        await LoadAsync(range);
+        loading = false;
+    }
+
+    private async Task LoadAsync(StatsRange range)
+    {
+        try
+        {
+            var state = await AuthStateProvider.GetAuthenticationStateAsync();
+            var userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId is not null)
+                Model = await StatsService.GetStatsAsync(userId, TimeSpan.FromMinutes(UtcOffsetMinutes ?? 0), range);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    // One square a day, Monday at the top, the last column ending today
+    private RenderFragment Heatmap(int weeks) => __builder =>
+    {
+        const int cell = 10, step = 12, left = 26, top = 14;
+        var counts = Model!.Heatmap;
+        var skip = Math.Max(0, (Model.Heatmap.Count + 6) / 7 - weeks) * 7;
+        var start = Model.HeatmapStart.AddDays(skip);
+        var max = Math.Max(1, counts.Skip(skip).DefaultIfEmpty(0).Max());
+        var columns = (counts.Count - skip + 6) / 7;
+        <svg viewBox="0 0 @(left + columns * step) @(top + 7 * step)" class="w-full h-auto" role="img"
+             aria-label="@($"Pomodoros per day over the past {(weeks > 26 ? "year" : "six months")}")">
+            @* Each label sits in its own <g>: Razor takes a <text> that opens a block of code for its own tag *@
+            <g font-size="9" style="fill: rgb(var(--fg) / 0.5)">
+                @foreach (var (row, name) in new[] { (0, "Mon"), (2, "Wed"), (4, "Fri") })
+                {
+                    <g><text x="0" y="@(top + row * step + 9)">@name</text></g>
+                }
+                @* A month's name over the week its first day falls in *@
+                @for (var c = 0; c < columns - 1; c++)
+                {
+                    var monday = start.AddDays(c * 7);
+                    var first = Enumerable.Range(0, 7).Select(i => monday.AddDays(i)).FirstOrDefault(d => d.Day == 1);
+                    if (first != default)
+                    {
+                        <g><text x="@(left + c * step)" y="9">@first.ToString("MMM", CultureInfo.InvariantCulture)</text></g>
+                    }
+                }
+            </g>
+            @for (var c = 0; c < columns; c++)
+            {
+                for (var r = 0; r < 7; r++)
+                {
+                    var i = skip + c * 7 + r;
+                    if (i >= counts.Count) break;
+                    var day = start.AddDays(c * 7 + r);
+                    var count = counts[i];
+                    <rect x="@(left + c * step)" y="@(top + r * step)" width="@cell" height="@cell" rx="2" style="@CellStyle(Level(count, max))">
+                        <title>@($"{day.ToString("ddd d MMM yyyy", CultureInfo.InvariantCulture)}: {Pomodoros(count)}")</title>
+                    </rect>
+                }
+            }
+        </svg>
+    };
+
+    // 0 for none, then 1–4 in even steps up to the busiest day shown
+    private static int Level(int count, int max) => count == 0 ? 0 : Math.Clamp((int)Math.Ceiling(count * 4.0 / max), 1, 4);
+
+    // SVG presentation attributes don't resolve var(), so the colours go in style
+    private static string CellStyle(int level) => level switch
+    {
+        0 => "fill: rgb(var(--fg) / 0.08)",
+        1 => "fill: #f87171; fill-opacity: 0.3",
+        2 => "fill: #f87171; fill-opacity: 0.5",
+        3 => "fill: #f87171; fill-opacity: 0.75",
+        _ => "fill: #f87171"
+    };
+
+    private string? Change()
+    {
+        var previous = Model!.PreviousRangePomodoros;
+        if (previous == 0) return null;
+        var pct = (int)Math.Round((Model.RangePomodoros - previous) * 100.0 / previous);
+        var versus = $"vs previous {RangeName(Model.Range)}";
+        return pct switch
+        {
+            > 0 => $"▲ {pct}% {versus}",
+            < 0 => $"▼ {-pct}% {versus}",
+            _ => $"Same as previous {RangeName(Model.Range)}"
+        };
+    }
+
+    private static string RangeName(StatsRange range) => range switch
+    {
+        StatsRange.Month => "30 days",
+        StatsRange.Year => "12 months",
+        _ => "7 days"
+    };
+
+    private static string Pomodoros(int count) => count == 1 ? "1 pomodoro" : $"{count} pomodoros";
+
+    // The injected service hides the class name here
+    private static string Time(int minutes) => global::PomodoroRelax4.Services.StatsService.FormatMinutes(minutes);
+
+    private static string HourRange(int hour) => $"{hour:00}:00–{(hour + 1) % 24:00}:00";
+
+    private static string ModeLabel(TimerMode mode) => mode switch
+    {
+        TimerMode.ShortBreak => "Short",
+        TimerMode.LongBreak => "Long",
+        _ => "Focus"
+    };
+
+    private static string BadgeClass(TimerMode mode) => mode switch
+    {
+        TimerMode.ShortBreak => "bg-shortbreak",
+        TimerMode.LongBreak => "bg-longbreak",
+        _ => "bg-pomodoro"
+    };
+}

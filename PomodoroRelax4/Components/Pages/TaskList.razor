@@ -1,5 +1,4 @@
 @using Microsoft.AspNetCore.Components.Authorization
-@using System.Globalization
 @using System.Security.Claims
 @inject ITaskService TaskService
 @inject AuthenticationStateProvider AuthStateProvider
@@ -304,22 +303,7 @@
         if (e.Key == "Escape") cancel();
     }
 
-    private (string Text, bool Overdue)? DueLabel(PomodoroTask task)
-    {
-        if (task.DueDate is not DateOnly due) return null;
-        var days = due.DayNumber - today.DayNumber;
-        var date = due.ToString(due.Year == today.Year ? "d MMM" : "d MMM yyyy", CultureInfo.InvariantCulture);
-
-        if (days < 0)
-            return task.IsCompleted ? ($"Due {date}", false) : ($"Overdue · {date}", true);
-        return days switch
-        {
-            0 => ("Due today", false),
-            1 => ("Due tomorrow", false),
-            < 7 => ($"Due {due.ToString("dddd", CultureInfo.InvariantCulture)}", false),
-            _ => ($"Due {date}", false)
-        };
-    }
+    private (string Text, bool Overdue)? DueLabel(PomodoroTask task) => TaskDue.Label(task, today);
 
     private async Task SelectTask(PomodoroTask task)
     {

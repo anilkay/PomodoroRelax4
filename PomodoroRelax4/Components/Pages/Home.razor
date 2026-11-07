@@ -1,6 +1,9 @@
 @page "/"
 @attribute [Authorize]
 @rendermode InteractiveServer
+@using System.Security.Claims
+@inject ITaskService TaskService
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>PomodoroRelax</PageTitle>
 <SignOutGuard />
@@ -21,6 +24,27 @@
     private int? activeTaskId;
     private string? activeTaskTitle;
     private TaskList? taskListRef;
+
+    // /?task=12, from ▶ on the To Do page, opens the timer with that task selected
+    [SupplyParameterFromQuery(Name = "task")]
+    public int? TaskFromQuery { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (TaskFromQuery is not int id) return;
+
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null) return;
+
+        // Only the user's own, open tasks
+        var task = (await TaskService.GetTasksAsync(userId)).FirstOrDefault(t => t.Id == id && !t.IsCompleted);
+        if (task is not null)
+        {
+            activeTaskId = task.Id;
+            activeTaskTitle = task.Title;
+        }
+    }
 
     private void HandleModeChanged(TimerMode mode)
     {

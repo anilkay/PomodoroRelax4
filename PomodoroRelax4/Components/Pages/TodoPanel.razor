@@ -1,0 +1,378 @@
+@using System.Globalization
+@using System.Security.Claims
+@inject ITaskService TaskService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
+
+@* The same tasks as the list under the timer, as a plain to-do list *@
+<div class="flex items-end justify-between gap-3 mb-5 flex-wrap">
+    <div>
+        <h1 class="text-2xl font-bold text-fg">@ViewName(view)</h1>
+        <div class="text-fg/50 text-sm mt-0.5">@today.ToString("dddd, d MMMM", CultureInfo.InvariantCulture)</div>
+    </div>
+    @if (tasks.Count > 0)
+    {
+        <span class="text-fg/40 text-xs">@tasks.Count(t => !t.IsCompleted) open · @tasks.Count(t => t.IsCompleted) done</span>
+    }
+</div>
+
+<!-- Smart lists -->
+<div class="flex gap-1 mb-4 overflow-x-auto scroll-row" role="tablist" aria-label="Lists">
+    @foreach (var v in Enum.GetValues<TodoView>())
+    {
+        var selected = v == view;
+        var openInView = tasks.Count(t => !t.IsCompleted && InView(t, v));
+        <button type="button" role="tab" aria-selected="@(selected ? "true" : "false")"
+                class="shrink-0 text-sm px-2.5 sm:px-3 py-1.5 rounded-lg transition @(selected ? "bg-fg/10 text-fg font-semibold" : "text-fg/50 hover:text-fg hover:bg-fg/5")"
+                @onclick="() => SelectView(v)">
+            @ViewName(v)
+            @if (openInView > 0)
+            {
+                <span class="ml-1 text-xs @(selected ? "text-fg/60" : "text-fg/40")">@openInView</span>
+            }
+        </button>
+    }
+</div>
+
+<!-- Add -->
+<div class="bg-surface border border-fg/5 rounded-lg flex items-center gap-3 px-4 py-3 mb-4 transition focus-within:border-fg/20">
+    <span class="text-fg/40 text-lg leading-none" aria-hidden="true">+</span>
+    <input @bind="newTitle" @bind:event="oninput" @onkeydown="AddKeyDown"
+           placeholder="@AddPlaceholder" maxlength="200" aria-label="New task"
+           class="flex-1 min-w-0 bg-transparent text-fg text-sm focus:outline-none placeholder:text-fg/40" />
+    @if (!string.IsNullOrWhiteSpace(newTitle))
+    {
+        <button type="button" class="text-xs font-semibold text-fg/70 hover:text-fg transition" @onclick="AddAsync">Add</button>
+    }
+</div>
+
+<!-- Open -->
+@{
+    var open = Sorted(tasks.Where(t => !t.IsCompleted && InView(t, view))).ToList();
+    var done = Sorted(tasks.Where(t => t.IsCompleted && InView(t, view))).ToList();
+}
+@if (open.Count == 0)
+{
+    <div class="text-fg/40 text-sm text-center py-8">
+        @(done.Count > 0 ? "All done here 🎉" : EmptyText(view))
+    </div>
+}
+<div class="space-y-2">
+    @foreach (var task in open)
+    {
+        @Row(task)
+    }
+</div>
+
+<!-- Completed -->
+@if (done.Count > 0)
+{
+    <div class="flex items-center justify-between gap-3 mt-6 mb-2 text-sm">
+        <button type="button" class="flex items-center gap-1.5 font-semibold text-fg/60 hover:text-fg transition"
+                aria-expanded="@(showDone ? "true" : "false")" @onclick="() => showDone = !showDone">
+            <span class="inline-block w-3 transition-transform @(showDone ? "rotate-90" : "")" aria-hidden="true">›</span>
+            Completed <span class="text-fg/40 font-normal">@done.Count</span>
+        </button>
+        @if (confirmingClear)
+        {
+            <span class="flex items-center gap-1 text-xs text-fg/50">
+                <span class="mr-1 hidden sm:inline">Delete all @tasks.Count(t => t.IsCompleted) done tasks?</span>
+                <button type="button" class="px-2 py-1 rounded-lg transition hover:bg-fg/5" @onclick="() => confirmingClear = false">Cancel</button>
+                <button type="button" class="px-2 py-1 rounded-lg font-semibold text-danger transition hover:bg-red-500/10" @onclick="ClearDoneAsync">Delete</button>
+            </span>
+        }
+        else
+        {
+            <button type="button" class="text-xs text-fg/40 hover:text-fg px-2 py-1 rounded-lg transition hover:bg-fg/5"
+                    title="Delete every done task; their pomodoros stay in Stats" @onclick="() => confirmingClear = true">Clear</button>
+        }
+    </div>
+    @if (showDone)
+    {
+        <div class="space-y-2">
+            @foreach (var task in done)
+            {
+                @Row(task)
+            }
+        </div>
+    }
+}
+
+@code {
+    private enum TodoView { All, Today, Important, Planned }
+
+    private List<PomodoroTask> tasks = new();
+    private string? userId;
+    private bool _loaded;
+
+    // The user's own calendar day; UTC until the browser reports its offset
+    private DateOnly today = DateOnly.FromDateTime(DateTime.UtcNow);
+    private TodoView view = TodoView.All;
+    private string newTitle = "";
+    private bool showDone = true;
+    private bool confirmingClear;
+
+    private int? editingId;
+    private TodoDraft? draft;
+
+    // What the details panel changes; copied onto the task only on save
+    private sealed class TodoDraft
+    {
+        public string Title { get; set; } = "";
+        public DateOnly? DueDate { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    // Only set while prerendering (statically, before the circuit exists)
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    // Loaded during prerender and carried into the circuit, like TaskList
+    [PersistentState]
+    public List<PomodoroTask>? PrerenderedTasks { get; set; }
+
+    [PersistentState]
+    public int? UtcOffsetMinutes { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null) return;
+
+        if (HttpContext is not null)
+            UtcOffsetMinutes = ClientPreferences.UtcOffsetMinutes(HttpContext);
+        PrerenderedTasks ??= await TaskService.GetTasksAsync(userId);
+
+        tasks = PrerenderedTasks;
+        if (UtcOffsetMinutes is int offset)
+            today = DateOnly.FromDateTime(DateTime.UtcNow.AddMinutes(offset));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // No tz cookie yet (first visit): ask the browser once the circuit is up
+        if (!firstRender || _loaded || UtcOffsetMinutes is not null) return;
+        _loaded = true;
+
+        try
+        {
+            var offsetMinutes = await JS.InvokeAsync<int>("pomodoroTime.utcOffsetMinutes");
+            today = DateOnly.FromDateTime(DateTime.UtcNow.AddMinutes(offsetMinutes));
+            StateHasChanged();
+        }
+        catch (JSException) { /* keep UTC */ }
+    }
+
+    private RenderFragment Row(PomodoroTask task) => @<div class="bg-surface border border-fg/5 rounded-lg">
+        @{
+            var due = TaskDue.Label(task, today);
+            var important = task.Priority == TaskPriority.High;
+        }
+        <div class="flex items-center gap-3 px-4 py-3">
+            <button type="button"
+                    class="group shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition @(task.IsCompleted ? "bg-pomodoro border-pomodoro" : "border-fg/30 hover:border-pomodoro")"
+                    title="@(task.IsCompleted ? "Mark as not done" : "Mark as done")"
+                    aria-label="@($"{task.Title}: {(task.IsCompleted ? "mark as not done" : "mark as done")}")"
+                    @onclick="() => ToggleDoneAsync(task)">
+                <span class="text-[10px] font-bold leading-none transition @(task.IsCompleted ? "text-app-base" : "text-pomodoro opacity-0 group-hover:opacity-100")">✓</span>
+            </button>
+
+            <button type="button" class="flex-1 min-w-0 text-left" title="Details" @onclick="() => ToggleDetails(task)">
+                <span class="block truncate text-sm @(task.IsCompleted ? "text-fg/40 line-through" : "text-fg")">@task.Title</span>
+                @if (due is not null || task.Notes is not null || task.CompletedPomodoros > 0)
+                {
+                    <span class="flex items-center gap-2 mt-0.5 text-[11px] text-fg/40 min-w-0">
+                        @if (due is not null)
+                        {
+                            <span class="shrink-0 @(due.Value.Overdue ? "text-danger font-medium" : "")">@due.Value.Text</span>
+                        }
+                        @if (task.CompletedPomodoros > 0)
+                        {
+                            <span class="shrink-0" title="Pomodoros done">🍅 @task.CompletedPomodoros</span>
+                        }
+                        @if (task.Notes is not null)
+                        {
+                            <span class="truncate">✎ @task.Notes</span>
+                        }
+                    </span>
+                }
+            </button>
+
+            @if (!task.IsCompleted)
+            {
+                <a href="/?task=@task.Id" class="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs text-fg/30 hover:text-fg hover:bg-fg/10 transition"
+                   title="Focus on this in the timer" aria-label="@($"Focus on {task.Title}")">▶</a>
+            }
+            <button type="button"
+                    class="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-base transition hover:bg-fg/10 @(important ? "text-pomodoro" : "text-fg/30 hover:text-fg")"
+                    title="@(important ? "Remove importance" : "Mark as important")"
+                    aria-pressed="@(important ? "true" : "false")" aria-label="@($"Important: {task.Title}")"
+                    @onclick="() => ToggleImportantAsync(task)">@(important ? "★" : "☆")</button>
+        </div>
+
+        @if (editingId == task.Id && draft is not null)
+        {
+            <div class="px-4 pb-4 pt-3 border-t border-fg/5 space-y-3">
+                <input @bind="draft.Title" @bind:event="oninput" maxlength="200" aria-label="Title"
+                       class="w-full bg-field border border-fg/10 rounded-md px-3 py-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-fg/20"
+                       @onkeydown="DetailsKeyDown" />
+
+                <div class="flex flex-wrap items-center gap-2 text-xs">
+                    <span class="text-fg/50 mr-1">Due</span>
+                    <button type="button" class="px-2 py-1 rounded-md transition hover:bg-fg/10 @(draft.DueDate == today ? "bg-fg/10 text-fg" : "text-fg/60")"
+                            @onclick="() => draft.DueDate = today">Today</button>
+                    <button type="button" class="px-2 py-1 rounded-md transition hover:bg-fg/10 @(draft.DueDate == today.AddDays(1) ? "bg-fg/10 text-fg" : "text-fg/60")"
+                            @onclick="() => draft.DueDate = today.AddDays(1)">Tomorrow</button>
+                    <input type="date" @bind="draft.DueDate" aria-label="Due date"
+                           class="rounded-md px-2 py-1 bg-field border border-fg/10 text-fg focus:outline-none" />
+                    @if (draft.DueDate is not null)
+                    {
+                        <button type="button" class="px-1 text-fg/40 hover:text-fg transition" title="Remove the due date"
+                                @onclick="() => draft.DueDate = null">✕</button>
+                    }
+                </div>
+
+                <textarea @bind="draft.Notes" @bind:event="oninput" rows="2" maxlength="@PomodoroTask.MaxNotesLength"
+                          placeholder="Add a note" aria-label="Notes"
+                          class="w-full bg-field border border-fg/10 rounded-md px-3 py-2 text-xs text-fg focus:outline-none focus:ring-2 focus:ring-fg/20 resize-y"></textarea>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" class="mr-auto px-2 py-1.5 text-xs rounded-lg text-danger transition hover:bg-red-500/10"
+                            @onclick="() => DeleteAsync(task)">Delete</button>
+                    <button type="button" class="px-3 py-1.5 text-xs rounded-lg text-fg/50 transition hover:bg-fg/5" @onclick="CloseDetails">Cancel</button>
+                    <button type="button" class="px-4 py-1.5 text-xs rounded-lg font-semibold bg-fg/10 text-fg transition hover:bg-fg/20"
+                            @onclick="() => SaveDetailsAsync(task)">Save</button>
+                </div>
+            </div>
+        }
+    </div>;
+
+    private bool InView(PomodoroTask task, TodoView v) => v switch
+    {
+        // Due today, or still open from an earlier day
+        TodoView.Today => task.DueDate is DateOnly d && (d == today || (d < today && !task.IsCompleted)),
+        TodoView.Important => task.Priority == TaskPriority.High,
+        TodoView.Planned => task.DueDate is not null,
+        _ => true
+    };
+
+    // The timer list's order, except that Planned goes by date
+    private IEnumerable<PomodoroTask> Sorted(IEnumerable<PomodoroTask> list) => view == TodoView.Planned
+        ? list.OrderBy(t => t.DueDate).ThenBy(t => t.SortOrder)
+        : list.OrderBy(t => t.SortOrder);
+
+    private static string ViewName(TodoView v) => v switch
+    {
+        TodoView.Today => "Today",
+        TodoView.Important => "Important",
+        TodoView.Planned => "Planned",
+        _ => "Tasks"
+    };
+
+    private static string EmptyText(TodoView v) => v switch
+    {
+        TodoView.Today => "Nothing due today.",
+        TodoView.Important => "Star a task to see it here.",
+        TodoView.Planned => "Tasks with a due date show up here.",
+        _ => "Nothing to do yet. Add a task above."
+    };
+
+    private string AddPlaceholder => view switch
+    {
+        TodoView.Today or TodoView.Planned => "Add a task due today",
+        TodoView.Important => "Add an important task",
+        _ => "Add a task"
+    };
+
+    private void SelectView(TodoView v)
+    {
+        view = v;
+        confirmingClear = false;
+        CloseDetails();
+    }
+
+    private async Task AddKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await AddAsync();
+        if (e.Key == "Escape") newTitle = "";
+    }
+
+    // A task added in a smart list belongs in it
+    private async Task AddAsync()
+    {
+        var title = newTitle.Trim();
+        if (title.Length == 0 || userId is null) return;
+
+        await TaskService.AddTaskAsync(userId, title, 1,
+            view == TodoView.Important ? TaskPriority.High : TaskPriority.Normal,
+            view is TodoView.Today or TodoView.Planned ? today : null);
+        newTitle = "";
+        tasks = await TaskService.GetTasksAsync(userId);
+    }
+
+    private async Task ToggleDoneAsync(PomodoroTask task)
+    {
+        task.IsCompleted = !task.IsCompleted;
+        await TaskService.UpdateTaskAsync(task);
+    }
+
+    // The star is High priority; taking it off leaves Normal
+    private async Task ToggleImportantAsync(PomodoroTask task)
+    {
+        task.Priority = task.Priority == TaskPriority.High ? TaskPriority.Normal : TaskPriority.High;
+        await TaskService.UpdateTaskAsync(task);
+    }
+
+    private void ToggleDetails(PomodoroTask task)
+    {
+        if (editingId == task.Id)
+        {
+            CloseDetails();
+            return;
+        }
+        editingId = task.Id;
+        draft = new TodoDraft { Title = task.Title, DueDate = task.DueDate, Notes = task.Notes };
+    }
+
+    private void CloseDetails()
+    {
+        editingId = null;
+        draft = null;
+    }
+
+    private async Task DetailsKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && editingId is int id && tasks.FirstOrDefault(t => t.Id == id) is { } task)
+            await SaveDetailsAsync(task);
+        if (e.Key == "Escape") CloseDetails();
+    }
+
+    private async Task SaveDetailsAsync(PomodoroTask task)
+    {
+        if (draft is null || string.IsNullOrWhiteSpace(draft.Title)) return;
+
+        task.Title = draft.Title.Trim();
+        task.DueDate = draft.DueDate;
+        task.Notes = string.IsNullOrWhiteSpace(draft.Notes) ? null : draft.Notes.Trim();
+        await TaskService.UpdateTaskAsync(task);
+        CloseDetails();
+    }
+
+    private async Task DeleteAsync(PomodoroTask task)
+    {
+        if (userId is null) return;
+        await TaskService.DeleteTaskAsync(task.Id, userId);
+        CloseDetails();
+        tasks = await TaskService.GetTasksAsync(userId);
+    }
+
+    private async Task ClearDoneAsync()
+    {
+        confirmingClear = false;
+        if (userId is null) return;
+        await TaskService.DeleteCompletedTasksAsync(userId);
+        if (editingId is int id && tasks.Any(t => t.Id == id && t.IsCompleted)) CloseDetails();
+        tasks = await TaskService.GetTasksAsync(userId);
+    }
+}

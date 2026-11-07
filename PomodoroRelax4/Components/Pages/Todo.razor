@@ -1,0 +1,10 @@
+@page "/todo"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+<PageTitle>To Do — PomodoroRelax</PageTitle>
+<SignOutGuard />
+
+@* The data lives in a child component: on the page itself, the root of the circuit,
+   [PersistentState] throws while the circuit restores it (ASP.NET Core 10.0.13) *@
+<TodoPanel />

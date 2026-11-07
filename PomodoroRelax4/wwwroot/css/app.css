@@ -128,3 +128,7 @@ html, body {
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgb(var(--fg) / 0.12); border-radius: 2px; }
+
+/* A row that scrolls sideways on narrow screens (the To Do lists) without showing a bar */
+.scroll-row { scrollbar-width: none; }
+.scroll-row::-webkit-scrollbar { display: none; }

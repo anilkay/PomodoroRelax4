@@ -54,6 +54,16 @@ Users change their own password from **Settings → Change password** (`/Account
 
 The list under the timer is the to-do list. Click a task to count the next pomodoros toward it. ✎ opens a task to change its title, estimated pomodoros, priority (Low, Normal, High), due date and notes. High-priority tasks get a red `!`. The due date reads "Due today", "Due tomorrow" or a weekday, and turns red as "Overdue" once it has passed. The day is the user's own day in the browser's time zone. **Hide done** keeps finished tasks out of the list; each browser remembers that choice. **Clear done** deletes them. Their pomodoros stay in Stats.
 
+### To Do
+
+**To Do** in the top bar (`/todo`) shows the same tasks as a plain to-do list, in the style of Microsoft To Do. Type in the box at the top and press Enter to add one, tick the circle when it's done, and open **Completed** to see or untick finished ones. The star marks a task important (High priority). Clicking a task opens its details: title, due date (with **Today** / **Tomorrow** shortcuts), notes and **Delete**. ▶ opens the timer with that task selected.
+
+- **Today**: due today, plus open tasks from earlier days.
+- **Important**: starred tasks.
+- **Planned**: tasks with a due date, soonest first.
+
+A task added while Today or Planned is open is due today; one added under Important is starred.
+
 ## Stats
 
 **Stats** shows today's pomodoros, the current streak (days in a row with at least one, still counting until today ends) with the best streak of the past year, the all-time total, and how many pomodoros done tasks took against their estimates (`1.3× estimate`). Below that:

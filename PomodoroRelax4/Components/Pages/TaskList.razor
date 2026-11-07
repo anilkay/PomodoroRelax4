@@ -7,12 +7,35 @@
 
 <div class="mt-8">
 
-    <!-- Section label -->
+    <!-- Section label: the To Do page's lists, to pick what to work on -->
     <div class="flex items-center gap-3 mb-4">
         <div class="h-px flex-1" style="background:rgb(var(--fg) / 0.07)"></div>
-        <span class="text-xs font-semibold uppercase tracking-widest" style="color:rgb(var(--fg) / 0.25)">Tasks</span>
+        <div class="flex items-center gap-1" role="group" aria-label="Show">
+            @foreach (var f in Enum.GetValues<ListFilter>())
+            {
+                var on = f == filter;
+                var openCount = tasks.Count(t => !t.IsCompleted && InFilter(t, f));
+                <button type="button"
+                        class="px-2 py-1 rounded-md text-xs font-semibold uppercase tracking-widest transition hover:bg-fg/5 @(on ? "text-fg/70" : "text-fg/25 hover:text-fg/50")"
+                        aria-pressed="@(on ? "true" : "false")"
+                        @onclick="() => SetFilter(f)">
+                    @(f == ListFilter.All ? "Tasks" : f.ToString())
+                    @if (f != ListFilter.All && openCount > 0)
+                    {
+                        <span class="ml-0.5 font-normal tracking-normal">@openCount</span>
+                    }
+                </button>
+            }
+        </div>
         <div class="h-px flex-1" style="background:rgb(var(--fg) / 0.07)"></div>
     </div>
+
+    @if (filter != ListFilter.All && !VisibleTasks.Any())
+    {
+        <p class="text-center text-xs mb-3" style="color:rgb(var(--fg) / 0.35)">
+            @(filter == ListFilter.Today ? "Nothing due today." : "No important tasks. Add one with High priority.")
+        </p>
+    }
 
     <!-- Task Items -->
     <div class="space-y-2 mb-3">
@@ -164,8 +187,28 @@
     private int? editingTaskId;
     private TaskDraft? editDraft;
 
-    private IEnumerable<PomodoroTask> VisibleTasks => hideDone ? tasks.Where(t => !t.IsCompleted) : tasks;
+    private enum ListFilter { All, Today, Important }
+    private ListFilter filter;
+
+    private IEnumerable<PomodoroTask> VisibleTasks => tasks.Where(t => (!hideDone || !t.IsCompleted) && InFilter(t, filter));
     private int DoneCount => tasks.Count(t => t.IsCompleted);
+
+    private bool InFilter(PomodoroTask task, ListFilter f) => f switch
+    {
+        ListFilter.Today => TaskDue.IsForToday(task, today),
+        ListFilter.Important => task.Priority == TaskPriority.High,
+        _ => true
+    };
+
+    /// <summary>
+    /// What to work on after <paramref name="doneId"/>: the next open task in the list as shown,
+    /// today's first, so finishing one moves the timer on.
+    /// </summary>
+    public PomodoroTask? NextTask(int doneId)
+        => tasks.Where(t => t.Id != doneId && !t.IsCompleted && InFilter(t, filter))
+                .OrderBy(t => TaskDue.IsForToday(t, today) ? 0 : 1)
+                .ThenBy(t => t.SortOrder)
+                .FirstOrDefault();
 
     // What the add and edit forms change; copied onto the task only on save
     private sealed class TaskDraft
@@ -192,6 +235,9 @@
     [PersistentState]
     public bool HideDone { get; set; }
 
+    [PersistentState]
+    public string? Filter { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         var state = await AuthStateProvider.GetAuthenticationStateAsync();
@@ -202,11 +248,13 @@
         {
             UtcOffsetMinutes = ClientPreferences.UtcOffsetMinutes(HttpContext);
             HideDone = ClientPreferences.HideDoneTasks(HttpContext);
+            Filter = ClientPreferences.TaskFilter(HttpContext);
         }
         PrerenderedTasks ??= await TaskService.GetTasksAsync(userId);
 
         tasks = PrerenderedTasks;
         hideDone = HideDone;
+        filter = Filter switch { "today" => ListFilter.Today, "important" => ListFilter.Important, _ => ListFilter.All };
         if (UtcOffsetMinutes is int offset)
             today = DateOnly.FromDateTime(DateTime.UtcNow.AddMinutes(offset));
     }
@@ -314,7 +362,12 @@
 
     private void StartAdd()
     {
-        addDraft = new TaskDraft();
+        // A task added while a list is shown belongs in it
+        addDraft = new TaskDraft
+        {
+            DueDate = filter == ListFilter.Today ? today : null,
+            Priority = filter == ListFilter.Important ? TaskPriority.High : TaskPriority.Normal
+        };
         CancelEdit();
     }
 
@@ -376,6 +429,21 @@
     {
         task.IsCompleted = !task.IsCompleted;
         await TaskService.UpdateTaskAsync(task);
+
+        // Finishing the task the timer is on moves the timer to the next one
+        if (task.IsCompleted && task.Id == SelectedTaskId)
+        {
+            var next = NextTask(task.Id);
+            await OnTaskSelected.InvokeAsync((next?.Id, next?.Title));
+        }
+    }
+
+    private async Task SetFilter(ListFilter f)
+    {
+        filter = f;
+        var value = f switch { ListFilter.Today => "today", ListFilter.Important => "important", _ => "" };
+        try { await JS.InvokeVoidAsync("pomodoroPrefs.set", ClientPreferences.TaskFilterCookie, value); }
+        catch (JSException) { /* only lasts this page */ }
     }
 
     private async Task DeleteTask(PomodoroTask task)

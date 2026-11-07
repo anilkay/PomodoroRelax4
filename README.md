@@ -56,13 +56,19 @@ The list under the timer is the to-do list. Click a task to count the next pomod
 
 ### To Do
 
-**To Do** in the top bar (`/todo`) shows the same tasks as a plain to-do list, in the style of Microsoft To Do. Type in the box at the top and press Enter to add one, tick the circle when it's done, and open **Completed** to see or untick finished ones. The star marks a task important (High priority). Clicking a task opens its details: title, due date (with **Today** / **Tomorrow** shortcuts), notes and **Delete**. ▶ opens the timer with that task selected.
+**To Do** in the top bar (`/todo`) shows the same tasks as a plain to-do list, in the style of Microsoft To Do. Type in the box at the top and press Enter to add one, tick the circle when it's done, and open **Completed** to see or untick finished ones. The star marks a task important (High priority). Clicking a task opens its details: title, due date (with **Today** / **Tomorrow** shortcuts), the number of pomodoros it should take, notes and **Delete**. ▶ opens the timer with that task selected. Tasks with pomodoros show `🍅 done/estimated`, and a bar fills as they get done.
 
 - **Today**: due today, plus open tasks from earlier days.
 - **Important**: starred tasks.
 - **Planned**: tasks with a due date, soonest first.
 
 A task added while Today or Planned is open is due today; one added under Important is starred.
+
+### Working through the list with the timer
+
+- **Tasks / Today / Important** above the list under the timer show all tasks or just one of those lists. The browser remembers the choice, and a task added while a list is shown goes into it.
+- When a pomodoro brings a task to its estimate, the timer asks whether it is finished. **Done ✓** marks it done; **Not yet, +1** raises the estimate by one.
+- Finishing the task the timer is on, from that question or its circle, moves the timer to the next open task in the list shown, today's first.
 
 ## Stats
 

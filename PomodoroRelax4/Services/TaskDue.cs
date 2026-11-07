@@ -3,9 +3,13 @@ using PomodoroRelax4.Models;
 
 namespace PomodoroRelax4.Services;
 
-// The due-date wording shared by the task list under the timer and the To Do page
+// The due-date wording and lists shared by the task list under the timer and the To Do page
 public static class TaskDue
 {
+    /// <summary>The "Today" list: due today, or still open from an earlier day.</summary>
+    public static bool IsForToday(PomodoroTask task, DateOnly today)
+        => task.DueDate is DateOnly d && (d == today || (d < today && !task.IsCompleted));
+
     /// <param name="today">The user's own calendar day.</param>
     public static (string Text, bool Overdue)? Label(PomodoroTask task, DateOnly today)
     {

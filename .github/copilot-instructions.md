@@ -81,6 +81,8 @@ await using var db = await _factory.CreateDbContextAsync();
 ### State flow on Home page
 `Home.razor` owns the active task selection and timer mode. It passes them down to `TimerDisplay` and `TaskList` via `[Parameter]` and receives updates via `EventCallback`. The current `TimerMode` is passed up to `MainLayout` as a `[CascadingValue]` to drive the background gradient.
 
+`TimerDisplay.OnPomodoroCompleted` carries the task with its new count. When that reaches the estimate, `Home` asks whether the task is finished. Finishing the selected task (there, or from its circle in `TaskList`) selects `TaskList.NextTask`: the next open task in the list as filtered, today's first.
+
 ---
 
 ## Key Conventions
@@ -106,7 +108,7 @@ Do **not** use `.Join().DefaultIfEmpty()` for left joins in EF Core — it does 
 
 ### Services
 Each domain has an interface + implementation in `Services/`:
-- `ITaskService` / `TaskService` — CRUD, reorder and clear-done for `PomodoroTask`. Priority, due date (`DateOnly`, the user's own day) and notes are carried through `ExportService` / `ImportService` as well. The timer's `TaskList` and the To Do page (`TodoPanel`) are two views of the same tasks and share the due-date wording in `TaskDue`.
+- `ITaskService` / `TaskService` — CRUD, reorder and clear-done for `PomodoroTask`. Priority, due date (`DateOnly`, the user's own day) and notes are carried through `ExportService` / `ImportService` as well. The timer's `TaskList` and the To Do page (`TodoPanel`) are two views of the same tasks and share the due-date wording and the Today list in `TaskDue`.
 - `ISessionService` / `SessionService` — record completed timer sessions
 - `ISettingsService` / `SettingsService` — per-user timer durations
 - `IStatsService` / `StatsService` — the Stats page's view model: counts, streaks, the 7-day / 30-day / 12-month activity with hours and top tasks, and a year of daily counts for the heatmap. It reads one window of pomodoros (the heatmap's year, or two years for the 12-month view) and groups them in memory by the viewer's local day.

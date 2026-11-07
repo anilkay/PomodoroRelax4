@@ -12,5 +12,6 @@ public interface ITaskService
     /// <summary>Deletes the user's finished tasks; their sessions stay, without a task.</summary>
     Task<int> DeleteCompletedTasksAsync(string userId);
     Task ReorderTasksAsync(string userId, List<int> orderedIds);
-    Task IncrementPomodoroAsync(int taskId, string userId);
+    /// <summary>Counts a finished pomodoro on the task and returns the task, or null if it is gone.</summary>
+    Task<PomodoroTask?> IncrementPomodoroAsync(int taskId, string userId);
 }

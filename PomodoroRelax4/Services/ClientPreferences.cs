@@ -19,4 +19,10 @@ public static class ClientPreferences
 
     public static bool HideDoneTasks(HttpContext? context)
         => context?.Request.Cookies[HideDoneTasksCookie] == "1";
+
+    public const string TaskFilterCookie = "taskFilter";
+
+    /// <summary>The list shown under the timer: "today", "important", or null for all tasks.</summary>
+    public static string? TaskFilter(HttpContext? context)
+        => context?.Request.Cookies[TaskFilterCookie] is "today" or "important" ? context.Request.Cookies[TaskFilterCookie] : null;
 }

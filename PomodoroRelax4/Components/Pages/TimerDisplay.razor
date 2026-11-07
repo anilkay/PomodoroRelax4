@@ -92,7 +92,8 @@
     [Parameter] public int? ActiveTaskId { get; set; }
     [Parameter] public string? activeTaskTitle { get; set; }
     [Parameter] public EventCallback<TimerMode> OnModeChanged { get; set; }
-    [Parameter] public EventCallback OnPomodoroCompleted { get; set; }
+    /// <summary>A focus session on the active task ended; carries the task with its new count.</summary>
+    [Parameter] public EventCallback<PomodoroTask?> OnPomodoroCompleted { get; set; }
 
     private TimerMode currentMode = TimerMode.Pomodoro;
     private int totalSeconds;
@@ -265,8 +266,8 @@
             await SessionService.RecordSessionAsync(userId, ActiveTaskId, currentMode, totalSeconds);
             if (currentMode == TimerMode.Pomodoro && ActiveTaskId.HasValue)
             {
-                await TaskService.IncrementPomodoroAsync(ActiveTaskId.Value, userId);
-                await OnPomodoroCompleted.InvokeAsync();
+                var task = await TaskService.IncrementPomodoroAsync(ActiveTaskId.Value, userId);
+                await OnPomodoroCompleted.InvokeAsync(task);
             }
         }
     }

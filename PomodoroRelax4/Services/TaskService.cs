@@ -109,7 +109,7 @@ public class TaskService : ITaskService
         await db.SaveChangesAsync();
     }
 
-    public async Task IncrementPomodoroAsync(int taskId, string userId)
+    public async Task<PomodoroTask?> IncrementPomodoroAsync(int taskId, string userId)
     {
         await using var db = await _factory.CreateDbContextAsync();
         var task = await db.PomodoroTasks
@@ -120,5 +120,6 @@ public class TaskService : ITaskService
             task.CompletedPomodoros++;
             await db.SaveChangesAsync();
         }
+        return task;
     }
 }

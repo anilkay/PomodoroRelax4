@@ -35,11 +35,13 @@ Each context has its own design-time factory (`ApplicationDbContextDesignTimeFac
 
 Migrations are applied automatically on startup (`db.Database.Migrate()` in `Program.cs`).
 
+The app targets `net11.0`, but EF Core, its SQL Server provider, Identity's EF store and the EF tools stay on 10.x: Npgsql's EF Core 11 provider has no stable release yet (11.0.0-rc.3), and the EF packages must move together. They run fine on .NET 11. Move them all to 11 once Npgsql 11.0.0 is out.
+
 ---
 
 ## Architecture
 
-**Blazor Server** (.NET 10) with two distinct rendering layers:
+**Blazor Server** (.NET 11) with two distinct rendering layers:
 
 | Layer | Path | Purpose |
 |-------|------|---------|
@@ -67,7 +69,7 @@ protected override async Task OnInitializedAsync()
 }
 ```
 
-Put `[PersistentState]` on a component the page renders, never on the routable page with `@rendermode` itself. That page is the root of the circuit, and on it ASP.NET Core 10.0.13 throws a `NullReferenceException` in `RemoteRenderer.GetMarkerKey` while restoring the value, which kills the circuit, so the page never goes interactive. `Stats.razor`, `Settings.razor` and `Todo.razor` are therefore thin pages around `StatsPanel`, `SettingsForm` and `TodoPanel`; `Home` has the state in `TaskList` and `TimerDisplay`.
+Put `[PersistentState]` on a component the page renders, never on the routable page with `@rendermode` itself. That page is the root of the circuit, and on it ASP.NET Core 10.0.13 threw a `NullReferenceException` in `RemoteRenderer.GetMarkerKey` while restoring the value, which kills the circuit, so the page never goes interactive. `Stats.razor`, `Settings.razor` and `Todo.razor` are therefore thin pages around `StatsPanel`, `SettingsForm` and `TodoPanel`; `Home` has the state in `TaskList` and `TimerDisplay`.
 
 JS interop doesn't work while prerendering. Browser values the server needs then (the viewer's UTC offset, "hide done tasks") are cookies that `site.js` writes, read through `Services/ClientPreferences.cs` from `[CascadingParameter] HttpContext? HttpContext`; that is null once the circuit runs. When a cookie is missing (first visit), fall back to JS in `OnAfterRenderAsync`, as `Stats.razor` does. Don't use `[CascadingParameter] Task<AuthenticationState>`; inject `AuthenticationStateProvider` as above.
 

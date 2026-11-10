@@ -65,7 +65,6 @@
     private void HandleModeChanged(TimerMode mode)
     {
         currentMode = mode;
-        StateHasChanged();
     }
 
     private void HandleTaskSelected((int? Id, string? Title) selection)
@@ -73,7 +72,6 @@
         activeTaskId = selection.Id;
         activeTaskTitle = selection.Title;
         if (askDone is not null && askDone.Id != selection.Id) askDone = null;
-        StateHasChanged();
     }
 
     // The task whose estimate the last pomodoro reached: asks whether it is finished
@@ -85,10 +83,7 @@
             await taskListRef.RefreshTasks();
 
         if (task is { IsCompleted: false } && task.CompletedPomodoros >= task.EstimatedPomodoros)
-        {
             askDone = task;
-            StateHasChanged();
-        }
     }
 
     private async Task FinishAsync()

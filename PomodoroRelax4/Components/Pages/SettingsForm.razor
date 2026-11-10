@@ -137,7 +137,6 @@
         {
             await Task.Delay(2500, _cts.Token);
             saved = false;
-            StateHasChanged();
         }
         catch (OperationCanceledException) { }
     }

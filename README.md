@@ -1,6 +1,6 @@
 # PomodoroRelax4
 
-Pomodoro timer with tasks, per-user settings and statistics. Blazor Server on .NET 10, ASP.NET Core Identity, EF Core on PostgreSQL or SQL Server.
+Pomodoro timer with tasks, per-user settings and statistics. Blazor Server on .NET 11, ASP.NET Core Identity, EF Core on PostgreSQL or SQL Server.
 
 ## Run locally
 

@@ -2,7 +2,7 @@
 # (db.Database.Migrate() in Program.cs), so no separate migrate step is needed.
 #   podman build -t localhost/pomodororelax4:latest -f Containerfile .
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 WORKDIR /src
 
 COPY PomodoroRelax4/PomodoroRelax4.csproj PomodoroRelax4/
@@ -24,7 +24,7 @@ RUN : > PomodoroRelax4/wwwroot/css/tailwind.css \
  && test -f /app/wwwroot/_framework/blazor.server.js \
  && test -s /app/wwwroot/css/tailwind.css
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0
+FROM mcr.microsoft.com/dotnet/aspnet:11.0
 WORKDIR /app
 
 # Data Protection keys (the sign-in cookie, antiforgery tokens) live here.

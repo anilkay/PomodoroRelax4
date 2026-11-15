@@ -1,0 +1,10 @@
+@model (string? Status, string? Error)
+@* The green "done" and red "failed" boxes above a form *@
+@if (Model.Status is not null)
+{
+    <div class="bg-green-700/40 text-fg text-sm rounded p-3 mb-4">@Model.Status</div>
+}
+@if (Model.Error is not null)
+{
+    <div class="bg-red-700/40 text-fg text-sm rounded p-3 mb-4">@Model.Error</div>
+}

@@ -1,8 +1,4 @@
-@using Microsoft.AspNetCore.Components.Authorization
-@using System.Security.Claims
-@inject ITaskService TaskService
-@inject AuthenticationStateProvider AuthStateProvider
-@inject IJSRuntime JS
+@inherits TaskPanelBase
 @rendermode InteractiveServer
 
 <div class="mt-8">
@@ -174,12 +170,6 @@
     [Parameter]
     public EventCallback<(int? Id, string? Title)> OnTaskSelected { get; set; }
 
-    private List<PomodoroTask> tasks = new();
-    private string? userId;
-    private bool _loaded;
-
-    // The user's own calendar day, for "Today" / "Overdue"; UTC until the browser reports its offset
-    private DateOnly today = DateOnly.FromDateTime(DateTime.UtcNow);
     private bool hideDone;
     private bool confirmingClear;
 
@@ -220,58 +210,24 @@
         public string? Notes { get; set; }
     }
 
-    // Only set while prerendering (statically, before the circuit exists)
-    [CascadingParameter]
-    private HttpContext? HttpContext { get; set; }
-
-    // Loaded during prerender and carried into the circuit: the first HTML already lists the
-    // tasks, and the circuit starts from the same data instead of querying again
-    [PersistentState]
-    public List<PomodoroTask>? PrerenderedTasks { get; set; }
-
-    [PersistentState]
-    public int? UtcOffsetMinutes { get; set; }
-
     [PersistentState]
     public bool HideDone { get; set; }
 
     [PersistentState]
     public string? Filter { get; set; }
 
-    protected override async Task OnInitializedAsync()
+    protected override void ReadPreferences(HttpContext context)
     {
-        var state = await AuthStateProvider.GetAuthenticationStateAsync();
-        userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is null) return;
-
-        if (HttpContext is not null)
-        {
-            UtcOffsetMinutes = ClientPreferences.UtcOffsetMinutes(HttpContext);
-            HideDone = ClientPreferences.HideDoneTasks(HttpContext);
-            Filter = ClientPreferences.TaskFilter(HttpContext);
-        }
-        PrerenderedTasks ??= await TaskService.GetTasksAsync(userId);
-
-        tasks = PrerenderedTasks;
-        hideDone = HideDone;
-        filter = Filter switch { "today" => ListFilter.Today, "important" => ListFilter.Important, _ => ListFilter.All };
-        if (UtcOffsetMinutes is int offset)
-            today = DateOnly.FromDateTime(DateTime.UtcNow.AddMinutes(offset));
+        HideDone = ClientPreferences.HideDoneTasks(context);
+        Filter = ClientPreferences.TaskFilter(context);
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnInitializedAsync()
     {
-        // No tz cookie yet (first visit): ask the browser once the circuit is up
-        if (!firstRender || _loaded || UtcOffsetMinutes is not null) return;
-        _loaded = true;
+        await base.OnInitializedAsync();
 
-        try
-        {
-            var offsetMinutes = await JS.InvokeAsync<int>("pomodoroTime.utcOffsetMinutes");
-            today = DateOnly.FromDateTime(DateTime.UtcNow.AddMinutes(offsetMinutes));
-            StateHasChanged();
-        }
-        catch (JSException) { /* keep UTC */ }
+        hideDone = HideDone;
+        filter = Filter switch { "today" => ListFilter.Today, "important" => ListFilter.Important, _ => ListFilter.All };
     }
 
     public async Task RefreshTasks()

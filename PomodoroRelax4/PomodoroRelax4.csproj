@@ -28,7 +28,7 @@
     <TailwindCli Condition="'$(TailwindCli)' == ''">$(MSBuildProjectDirectory)/../.tools/tailwindcss</TailwindCli>
   </PropertyGroup>
   <ItemGroup>
-    <TailwindInput Include="tailwind.config.js;Styles/tailwind.css;Components/**/*.razor;Pages/**/*.cshtml;wwwroot/js/**/*.js" />
+    <TailwindInput Include="tailwind.config.js;Styles/tailwind.css;Components/**/*.razor;Pages/**/*.cshtml;TagHelpers/**/*.cs;wwwroot/js/**/*.js" />
   </ItemGroup>
   <Target Name="TailwindCss" BeforeTargets="BeforeBuild" Condition="Exists('$(TailwindCli)')"
           Inputs="@(TailwindInput)" Outputs="wwwroot/css/tailwind.css">

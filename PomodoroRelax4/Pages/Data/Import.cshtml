@@ -8,14 +8,7 @@
     <div class="bg-surface border border-fg/5 backdrop-blur rounded-lg p-8 w-full max-w-md">
         <h2 class="text-2xl font-bold text-fg text-center mb-4">Import Data</h2>
 
-        @if (Model.StatusMessage is not null)
-        {
-            <div class="bg-green-700/40 text-fg text-sm rounded p-3 mb-4">@Model.StatusMessage</div>
-        }
-        @if (Model.ErrorMessage is not null)
-        {
-            <div class="bg-red-700/40 text-fg text-sm rounded p-3 mb-4">@Model.ErrorMessage</div>
-        }
+        <partial name="_StatusMessages" model="(Model.StatusMessage, Model.ErrorMessage)" />
 
         <p class="text-fg/70 text-sm mb-2">
             Choose an Excel (.xlsx) or JSON file made with <span class="text-fg">Settings → Export your data</span>.

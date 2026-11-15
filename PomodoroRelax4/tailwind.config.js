@@ -5,6 +5,7 @@ module.exports = {
     content: [
         './Components/**/*.razor',
         './Pages/**/*.cshtml',
+        './TagHelpers/**/*.cs',
         './wwwroot/js/**/*.js',
     ],
     theme: {

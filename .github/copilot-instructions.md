@@ -90,7 +90,7 @@ await using var db = await _factory.CreateDbContextAsync();
 ## Key Conventions
 
 ### Styling
-- **Tailwind 3.4.17, compiled at build time.** Config is `tailwind.config.js` and input is `Styles/tailwind.css`. The output `wwwroot/css/tailwind.css` holds only the classes found in `.razor` / `.cshtml` / `wwwroot/js`, so write class names out in full, never assembled from pieces at runtime.
+- **Tailwind 3.4.17, compiled at build time.** Config is `tailwind.config.js` and input is `Styles/tailwind.css`. The output `wwwroot/css/tailwind.css` holds only the classes found in `.razor` / `.cshtml` / `wwwroot/js` / `TagHelpers/*.cs`, so write class names out in full, never assembled from pieces at runtime.
   - The `TailwindCss` target in the `.csproj` regenerates it on build when the CLI is in `.tools/` (`sh tools/get-tailwind.sh`). Commit the regenerated file with markup changes.
   - The Containerfile always regenerates it.
 - **Fonts** are self-hosted in `wwwroot/fonts`. The `@font-face` rules are in `app.css`, and the CSP allows no font or style origin but `'self'`.
@@ -110,7 +110,7 @@ Do **not** use `.Join().DefaultIfEmpty()` for left joins in EF Core — it does 
 
 ### Services
 Each domain has an interface + implementation in `Services/`:
-- `ITaskService` / `TaskService` — CRUD, reorder and clear-done for `PomodoroTask`. Priority, due date (`DateOnly`, the user's own day) and notes are carried through `ExportService` / `ImportService` as well. The timer's `TaskList` and the To Do page (`TodoPanel`) are two views of the same tasks and share the due-date wording and the Today list in `TaskDue`.
+- `ITaskService` / `TaskService` — CRUD, reorder and clear-done for `PomodoroTask`. Priority, due date (`DateOnly`, the user's own day) and notes are carried through `ExportService` / `ImportService` as well. The timer's `TaskList` and the To Do page (`TodoPanel`) are two views of the same tasks and share the due-date wording and the Today list in `TaskDue`. Both inherit `TaskPanelBase`, which loads the tasks and the user's day.
 - `ISessionService` / `SessionService` — record completed timer sessions
 - `ISettingsService` / `SettingsService` — per-user timer durations
 - `IStatsService` / `StatsService` — the Stats page's view model: counts, streaks, the 7-day / 30-day / 12-month activity with hours and top tasks, and a year of daily counts for the heatmap. It reads one window of pomodoros (the heatmap's year, or two years for the 12-month view) and groups them in memory by the viewer's local day.

@@ -106,6 +106,8 @@ public class StatsService : IStatsService
     public async Task<StatsViewModel> GetStatsAsync(string userId, TimeSpan utcOffset, StatsRange range = StatsRange.Week)
     {
         await using var db = await _factory.CreateDbContextAsync();
+        // Only reads: skip the change tracker's snapshots of the tasks and sessions it loads
+        db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow + utcOffset);
         var rangeStart = range switch

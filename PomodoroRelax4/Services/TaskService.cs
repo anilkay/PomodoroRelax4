@@ -13,7 +13,9 @@ public class TaskService : ITaskService
     public async Task<List<PomodoroTask>> GetTasksAsync(string userId)
     {
         await using var db = await _factory.CreateDbContextAsync();
+        // Read-only: updates load their own copy (UpdateTaskAsync), so nothing needs tracking
         return await db.PomodoroTasks
+            .AsNoTracking()
             .Where(t => t.UserId == userId)
             .OrderBy(t => t.SortOrder)
             .ToListAsync();
